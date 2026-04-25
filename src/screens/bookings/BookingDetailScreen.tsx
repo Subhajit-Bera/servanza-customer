@@ -270,16 +270,25 @@ const BookingDetailScreen: React.FC = () => {
                                             {booking.buddy.avgRating?.toFixed(1) || 'New'}
                                         </Text>
                                     </View>
+                                    <View style={styles.actionButtonsRow}>
+                                        <TouchableOpacity
+                                            style={styles.chatIconButton}
+                                            onPress={() => navigation.navigate('Chat', { bookingId, buddyName: booking.buddy!.name })}
+                                        >
+                                            <Ionicons name="chatbubbles" size={20} color={COLORS.primary} />
+                                        </TouchableOpacity>
+                                        
+                                        {canTrack && (
+                                            <TouchableOpacity
+                                                style={styles.trackButton}
+                                                onPress={handleTrackBuddy}
+                                            >
+                                                <Ionicons name="navigate" size={16} color={COLORS.white} />
+                                                <Text style={styles.trackButtonText}>Track</Text>
+                                            </TouchableOpacity>
+                                        )}
+                                    </View>
                                 </View>
-                                {canTrack && (
-                                    <TouchableOpacity
-                                        style={styles.trackButton}
-                                        onPress={handleTrackBuddy}
-                                    >
-                                        <Ionicons name="navigate" size={16} color={COLORS.white} />
-                                        <Text style={styles.trackButtonText}>Track</Text>
-                                    </TouchableOpacity>
-                                )}
                             </View>
                         </View>
                     </View>
@@ -641,6 +650,19 @@ const styles = StyleSheet.create({
     ratingText: {
         fontSize: TYPOGRAPHY.fontSize.sm,
         color: COLORS.darkGray,
+    },
+    actionButtonsRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+    },
+    chatIconButton: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: COLORS.primary + '15',
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     trackButton: {
         flexDirection: 'row',

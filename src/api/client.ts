@@ -170,6 +170,11 @@ export const servicesApi = {
         apiClient.get('/services/categories'),
     getCategoryBySlug: (slug: string) =>
         apiClient.get(`/services/categories/${slug}`),
+    // Chat
+    getChatMessages: (bookingId: string, cursor?: string, limit = 50) =>
+        apiClient.get(`/bookings/${bookingId}/messages`, { params: { cursor, limit } }),
+    getUnreadMessageCount: (bookingId: string) =>
+        apiClient.get(`/bookings/${bookingId}/messages/unread-count`),
 };
 
 // Booking API

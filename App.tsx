@@ -18,6 +18,7 @@ import { useNotifications, useNotificationNavigation } from './src/hooks/useNoti
 import { useLocation } from './src/hooks/useLocation';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { OfflineBanner } from './src/components/OfflineBanner';
+import IncomingCallOverlay from './src/components/IncomingCallOverlay';
 import { injectStore } from './src/api/client';
 
 // Inject the Redux store into the Axios interceptor so it can dispatch logout() on auth failure
@@ -136,6 +137,7 @@ const AppContent: React.FC = () => {
         <NavigationContainer>
           <StatusBar style="dark" />
           <OfflineBanner />
+          <IncomingCallOverlay />
           <RootNavigator />
         </NavigationContainer>
       </ErrorBoundary>

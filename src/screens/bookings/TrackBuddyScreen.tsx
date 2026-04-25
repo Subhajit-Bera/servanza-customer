@@ -331,7 +331,7 @@ const styles = StyleSheet.create({
         marginTop: SPACING.md,
         borderRadius: BORDER_RADIUS.md,
         gap: SPACING.xs,
-        ...SHADOWS.small,
+        ...SHADOWS.light,
     },
     offlineText: {
         color: COLORS.white,

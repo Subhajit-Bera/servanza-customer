@@ -20,6 +20,8 @@ import MyBookingsScreen from '../screens/bookings/MyBookingsScreen';
 import BookingDetailScreen from '../screens/bookings/BookingDetailScreen';
 import TrackBuddyScreen from '../screens/bookings/TrackBuddyScreen';
 import ReviewScreen from '../screens/bookings/ReviewScreen';
+import ChatScreen from '../screens/chat/ChatScreen';
+import VoiceCallScreen from '../screens/chat/VoiceCallScreen';
 
 // Cart Stack
 import CartScreen from '../screens/cart/CartScreen';
@@ -60,6 +62,8 @@ export type BookingsStackParamList = {
     BookingDetail: { bookingId: string };
     TrackBuddy: { bookingId: string };
     Review: { bookingId: string };
+    Chat: { bookingId: string; buddyName: string };
+    VoiceCall: { bookingId: string; buddyName: string; isIncoming?: boolean; callId?: string };
 };
 
 export type CartStackParamList = {
@@ -128,6 +132,12 @@ const BookingsStackNavigator = () => {
             <BookingsStack.Screen name="BookingDetail" component={BookingDetailScreen} />
             <BookingsStack.Screen name="TrackBuddy" component={TrackBuddyScreen} />
             <BookingsStack.Screen name="Review" component={ReviewScreen} />
+            <BookingsStack.Screen name="Chat" component={ChatScreen} />
+            <BookingsStack.Screen 
+                name="VoiceCall" 
+                component={VoiceCallScreen}
+                options={{ presentation: 'modal' }} 
+            />
         </BookingsStack.Navigator>
     );
 };
