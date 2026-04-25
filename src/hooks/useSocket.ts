@@ -1,4 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
+import { AppState, AppStateStatus } from 'react-native';
+import { bookingApi } from '../api/client';
 import {
     connectSocket,
     disconnectSocket,
@@ -99,9 +101,27 @@ export const useBuddyLocation = (bookingId: string | null) => {
 export const useBookingStatus = (bookingId: string | null) => {
     const [status, setStatus] = useState<string | null>(null);
     const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
+    const appState = useRef(AppState.currentState);
+
+    const fetchLatestStatus = async () => {
+        if (!bookingId) return;
+        try {
+            const res = await bookingApi.getBookingById(bookingId);
+            const latestStatus = res.data?.data?.status || res.data?.status;
+            if (latestStatus && latestStatus !== status) {
+                setStatus(latestStatus);
+                setLastUpdate(new Date());
+            }
+        } catch (error) {
+            console.error('[Socket Fallback] Failed to fetch latest status', error);
+        }
+    };
 
     useEffect(() => {
         if (!bookingId) return;
+
+        // Fetch initial status via REST to ensure we start fresh
+        fetchLatestStatus();
 
         const handleStatusChange = (data: any) => {
             if (data.bookingId === bookingId) {
@@ -113,9 +133,20 @@ export const useBookingStatus = (bookingId: string | null) => {
         addSocketListener('booking:status:changed', handleStatusChange);
         addSocketListener('booking:updated', handleStatusChange);
 
+        // --- AppState REST Fallback ---
+        // If the app backgrounds and misses socket events, refetch on foreground
+        const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
+            if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
+                console.log('[Socket Fallback] App foregrounded. Fetching latest status...');
+                fetchLatestStatus();
+            }
+            appState.current = nextAppState;
+        });
+
         return () => {
             removeSocketListener('booking:status:changed', handleStatusChange);
             removeSocketListener('booking:updated', handleStatusChange);
+            subscription.remove();
         };
     }, [bookingId]);
 

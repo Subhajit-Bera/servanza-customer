@@ -16,6 +16,7 @@ import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { clearCart } from '../../store/slices/cartSlice';
 import { paymentApi } from '../../api/client';
 import { CONFIG } from '../../config/constants';
+import RazorpayCheckout from 'react-native-razorpay';
 import type { CartStackParamList } from '../../navigation/MainNavigator';
 
 type PaymentRouteProp = RouteProp<CartStackParamList, 'Payment'>;
@@ -29,8 +30,7 @@ const PaymentScreen: React.FC = () => {
     const { bookingId } = route.params;
     const { total } = useAppSelector((state) => state.cart);
 
-    // In a real app, you would fetch the booking details to show address/time summary
-    // const { user } = useAppSelector((state) => state.auth);
+    const { user } = useAppSelector((state) => state.auth);
 
     const [loading, setLoading] = useState(false);
     const [selectedMethod, setSelectedMethod] = useState<'UPI' | 'CARD' | 'WALLET'>('UPI');
@@ -46,17 +46,29 @@ const PaymentScreen: React.FC = () => {
 
             const order = data.data || data;
 
-            // Note: In a real app, you would integrate with Razorpay SDK here
-            // For now, we'll simulate a successful payment
+            // Configure and open Razorpay native checkout modal
+            const options = {
+                description: 'Servanza Booking Payment',
+                currency: 'INR',
+                key: CONFIG.RAZORPAY_KEY_ID,
+                amount: total * 100, // Amount in paise
+                name: 'Servanza',
+                order_id: order.id,
+                prefill: {
+                    email: user?.email || '',
+                    contact: user?.phone || '',
+                    name: user?.name || ''
+                },
+                theme: { color: COLORS.primary }
+            };
 
-            // Simulate payment processing
-            await new Promise(resolve => setTimeout(resolve, 2000));
+            const rpResponse = await RazorpayCheckout.open(options);
 
-            // Verify payment (in real app, use actual Razorpay response)
+            // Verify the real payment signature with the backend
             await paymentApi.verifyPayment({
-                razorpay_order_id: order.id,
-                razorpay_payment_id: `pay_${Date.now()}`,
-                razorpay_signature: 'simulated_signature',
+                razorpay_order_id: rpResponse.razorpay_order_id,
+                razorpay_payment_id: rpResponse.razorpay_payment_id,
+                razorpay_signature: rpResponse.razorpay_signature,
                 bookingId,
             });
 

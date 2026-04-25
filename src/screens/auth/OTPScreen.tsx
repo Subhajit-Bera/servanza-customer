@@ -144,7 +144,10 @@ const OTPScreen: React.FC = () => {
             await auth().signInWithPhoneNumber(phone);
             Alert.alert('Success', 'A new OTP has been sent to your phone');
         } catch (error: any) {
-            Alert.alert('Error', 'Failed to resend OTP. Please try again.');
+            const msg = error.code === 'auth/too-many-requests' 
+                ? 'Too many requests. Please wait a while before trying again.'
+                : error.message || 'Failed to resend OTP. Please try again.';
+            Alert.alert('Error', msg);
             setCanResend(true);
         }
     };
