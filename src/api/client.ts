@@ -162,6 +162,10 @@ export const servicesApi = {
         apiClient.get(`/services/${id}`),
     getServiceReviews: (id: string, page = 1, limit = 10) =>
         apiClient.get(`/services/${id}/reviews`, { params: { page, limit } }),
+    getSimilarServices: (id: string, limit = 5) =>
+        apiClient.get(`/services/${id}/similar`, { params: { limit } }),
+    getTrendingServices: (limit = 10) =>
+        apiClient.get('/services/trending', { params: { limit } }),
     getCategories: () =>
         apiClient.get('/services/categories'),
     getCategoryBySlug: (slug: string) =>
