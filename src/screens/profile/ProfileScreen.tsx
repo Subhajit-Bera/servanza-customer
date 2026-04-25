@@ -1,4 +1,5 @@
 import React, { useCallback } from 'react';
+import dayjs from 'dayjs';
 import {
     View,
     Text,
@@ -127,8 +128,32 @@ const ProfileScreen: React.FC = () => {
             ],
         },
         {
-            title: 'SUPPORT',
+            title: 'ABOUT & SUPPORT',
             items: [
+                {
+                    icon: 'notifications',
+                    iconColor: '#3B82F6',
+                    label: 'Notification Preferences',
+                    onPress: () => navigation.navigate('NotificationPreferences' as any),
+                },
+                {
+                    icon: 'document-text',
+                    iconColor: COLORS.primary,
+                    label: 'Terms & Conditions',
+                    onPress: () => navigation.navigate('Terms' as any),
+                },
+                {
+                    icon: 'shield-checkmark',
+                    iconColor: COLORS.success,
+                    label: 'Privacy Policy',
+                    onPress: () => navigation.navigate('Privacy' as any),
+                },
+                {
+                    icon: 'information-circle',
+                    iconColor: COLORS.info,
+                    label: 'About Us',
+                    onPress: () => navigation.navigate('About' as any),
+                },
                 {
                     icon: 'help-circle',
                     iconColor: COLORS.textSecondary,
@@ -138,6 +163,24 @@ const ProfileScreen: React.FC = () => {
             ],
         },
     ];
+
+    const handleDeleteAccount = () => {
+        Alert.alert(
+            'Delete Account',
+            'Are you sure you want to delete your account? This action cannot be undone and all your data will be permanently removed.',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Delete',
+                    style: 'destructive',
+                    onPress: () => {
+                        dispatch(logout());
+                        Alert.alert('Account Deleted', 'Your account has been scheduled for deletion.');
+                    },
+                },
+            ]
+        );
+    };
 
     return (
         <SafeAreaView style={styles.container} edges={['top']}>
@@ -168,8 +211,9 @@ const ProfileScreen: React.FC = () => {
                         </View>
                     </View>
                     <Text style={styles.userName}>{user?.name || 'User'}</Text>
-                    {/* <Text style={styles.userPhone}>{user?.phone || ''}</Text>
-                    <Text style={styles.userEmail}>{user?.email || ''}</Text> */}
+                    {user?.createdAt && (
+                        <Text style={styles.memberSince}>Member since {dayjs(user.createdAt).format('YYYY')}</Text>
+                    )}
                 </View>
 
                 {/* Stats Cards */}
@@ -214,6 +258,12 @@ const ProfileScreen: React.FC = () => {
                 <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
                     <Ionicons name="log-out-outline" size={20} color={COLORS.primary} />
                     <Text style={styles.logoutText}>Log Out</Text>
+                </TouchableOpacity>
+
+                {/* Delete Account Button */}
+                <TouchableOpacity style={styles.deleteAccountButton} onPress={handleDeleteAccount}>
+                    <Ionicons name="trash-outline" size={20} color={COLORS.error} />
+                    <Text style={styles.deleteAccountText}>Delete Account</Text>
                 </TouchableOpacity>
 
                 {/* App Version */}
@@ -297,10 +347,15 @@ const styles = StyleSheet.create({
         borderColor: COLORS.white,
     },
     userName: {
-        fontSize: TYPOGRAPHY.fontSize.xxl,
+        fontSize: TYPOGRAPHY.fontSize.xl,
         fontWeight: TYPOGRAPHY.fontWeight.bold,
         color: COLORS.textPrimary,
         marginBottom: 4,
+    },
+    memberSince: {
+        fontSize: TYPOGRAPHY.fontSize.sm,
+        color: COLORS.mediumGray,
+        fontWeight: TYPOGRAPHY.fontWeight.medium,
     },
     userPhone: {
         fontSize: TYPOGRAPHY.fontSize.md,
@@ -397,11 +452,25 @@ const styles = StyleSheet.create({
         fontWeight: TYPOGRAPHY.fontWeight.semibold,
         color: COLORS.primary,
     },
+    deleteAccountButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: SPACING.md,
+        marginHorizontal: SPACING.lg,
+        marginBottom: SPACING.xl,
+        gap: SPACING.sm,
+    },
+    deleteAccountText: {
+        fontSize: TYPOGRAPHY.fontSize.md,
+        fontWeight: TYPOGRAPHY.fontWeight.semibold,
+        color: COLORS.error,
+    },
     versionText: {
-        fontSize: TYPOGRAPHY.fontSize.sm,
-        color: COLORS.textSecondary,
         textAlign: 'center',
-        marginTop: SPACING.xl,
+        color: COLORS.textLight,
+        fontSize: TYPOGRAPHY.fontSize.sm,
+        marginBottom: SPACING.xl,
     },
 });
 

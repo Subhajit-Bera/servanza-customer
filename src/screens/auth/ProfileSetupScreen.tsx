@@ -50,11 +50,11 @@ const ProfileSetupScreen: React.FC = () => {
                 email: email.trim() || undefined,
             })).unwrap();
 
-            // Navigate to main app
-            navigation.reset({
-                index: 0,
-                routes: [{ name: 'Splash' }],
-            });
+            if (navigation.canGoBack()) {
+                navigation.goBack();
+            } else {
+                navigation.navigate('Main' as any);
+            }
         } catch (error: any) {
             Alert.alert('Error', error.message || 'Failed to update profile');
         } finally {
@@ -162,10 +162,13 @@ const ProfileSetupScreen: React.FC = () => {
                         {isNewUser && (
                             <TouchableOpacity
                                 style={styles.skipButton}
-                                onPress={() => navigation.reset({
-                                    index: 0,
-                                    routes: [{ name: 'Splash' }],
-                                })}
+                                onPress={() => {
+                                    if (navigation.canGoBack()) {
+                                        navigation.goBack();
+                                    } else {
+                                        navigation.navigate('Main' as any);
+                                    }
+                                }}
                             >
                                 <Text style={styles.skipButtonText}>Skip for now</Text>
                             </TouchableOpacity>

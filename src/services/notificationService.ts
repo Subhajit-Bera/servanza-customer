@@ -14,6 +14,65 @@ Notifications.setNotificationHandler({
     }),
 });
 
+import { Platform } from 'react-native';
+
+// ─── Android Notification Channel IDs ────────────────────────────────────────
+// Exported so callers always reference a typed constant, never a raw string.
+export const NOTIFICATION_CHANNELS = {
+    BOOKINGS: 'servanza_bookings',
+    PROMOS:   'servanza_promos',
+    CHAT:     'servanza_chat',
+    GENERAL:  'servanza_general',
+} as const;
+
+export type NotificationChannelId = typeof NOTIFICATION_CHANNELS[keyof typeof NOTIFICATION_CHANNELS];
+
+// ─── Register all channels at module load (Android 8.0+ requirement) ─────────
+// Channels are idempotent — safe to call every app launch.
+if (Platform.OS === 'android') {
+    // Booking events — highest priority (job status, OTP, buddy arrival)
+    Notifications.setNotificationChannelAsync(NOTIFICATION_CHANNELS.BOOKINGS, {
+        name: 'Bookings',
+        description: 'Booking confirmations, buddy updates, and job status alerts',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#47855f',   // Servanza brand green
+        enableVibrate: true,
+        showBadge: true,
+    });
+
+    // Promotional offers — lower priority, no vibration
+    Notifications.setNotificationChannelAsync(NOTIFICATION_CHANNELS.PROMOS, {
+        name: 'Offers & Promotions',
+        description: 'Deals, discounts, and promotional campaigns',
+        importance: Notifications.AndroidImportance.DEFAULT,
+        vibrationPattern: [0, 100],
+        lightColor: '#F59E0B',   // Amber
+        enableVibrate: false,
+        showBadge: false,
+    });
+
+    // In-app chat messages
+    Notifications.setNotificationChannelAsync(NOTIFICATION_CHANNELS.CHAT, {
+        name: 'Chat Messages',
+        description: 'Messages from your assigned buddy',
+        importance: Notifications.AndroidImportance.HIGH,
+        vibrationPattern: [0, 150, 100, 150],
+        lightColor: '#3B82F6',   // Blue
+        enableVibrate: true,
+        showBadge: true,
+    });
+
+    // General / system alerts
+    Notifications.setNotificationChannelAsync(NOTIFICATION_CHANNELS.GENERAL, {
+        name: 'General',
+        description: 'App updates and general information',
+        importance: Notifications.AndroidImportance.LOW,
+        enableVibrate: false,
+        showBadge: false,
+    });
+}
+
 // Notification types from backend
 export interface PushNotificationData {
     type: 'BOOKING_CONFIRMED' | 'BOOKING_ASSIGNED' | 'BUDDY_EN_ROUTE' | 'BUDDY_ARRIVED' | 'BOOKING_COMPLETED' | 'BOOKING_CANCELLED' | 'CHAT_MESSAGE' | 'PROMO';
@@ -126,12 +185,14 @@ export const setupNotificationListeners = (): () => void => {
 
         // Show local notification for foreground messages
         if (remoteMessage.notification) {
+            const channelId = resolveChannel(remoteMessage.data?.type as string);
             await Notifications.scheduleNotificationAsync({
                 content: {
                     title: remoteMessage.notification.title || 'Servanza',
                     body: remoteMessage.notification.body || '',
                     data: remoteMessage.data as Record<string, string>,
                     sound: true,
+                    ...(Platform.OS === 'android' && { channelId }),
                 },
                 trigger: null, // Show immediately
             });
@@ -185,6 +246,27 @@ export const addNotificationListener = (callback: NotificationCallback): () => v
     return () => {
         notificationCallbacks.delete(callback);
     };
+};
+
+/**
+ * Resolve the correct Android notification channel from the FCM message type.
+ */
+const resolveChannel = (type?: string): NotificationChannelId => {
+    switch (type) {
+        case 'BOOKING_CONFIRMED':
+        case 'BOOKING_ASSIGNED':
+        case 'BUDDY_EN_ROUTE':
+        case 'BUDDY_ARRIVED':
+        case 'BOOKING_COMPLETED':
+        case 'BOOKING_CANCELLED':
+            return NOTIFICATION_CHANNELS.BOOKINGS;
+        case 'CHAT_MESSAGE':
+            return NOTIFICATION_CHANNELS.CHAT;
+        case 'PROMO':
+            return NOTIFICATION_CHANNELS.PROMOS;
+        default:
+            return NOTIFICATION_CHANNELS.GENERAL;
+    }
 };
 
 /**

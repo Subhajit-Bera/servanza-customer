@@ -2,9 +2,11 @@ import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS } from '../theme';
-import { useAppSelector } from '../store/hooks';
+import { useAppSelector, useAppDispatch } from '../store/hooks';
+import { setPendingAction } from '../store/slices/authSlice';
+import { useNavigation } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // Home Stack
 import HomeScreen from '../screens/home/HomeScreen';
@@ -35,6 +37,11 @@ import HelpScreen from '../screens/profile/HelpScreen';
 import FavoritesScreen from '../screens/profile/FavoritesScreen';
 import ChangePasswordScreen from '../screens/profile/ChangePasswordScreen';
 import MyReviewsScreen from '../screens/profile/MyReviewsScreen';
+import TransactionHistoryScreen from '../screens/profile/TransactionHistoryScreen';
+import NotificationPreferencesScreen from '../screens/profile/NotificationPreferencesScreen';
+import TermsScreen from '../screens/profile/TermsScreen';
+import PrivacyScreen from '../screens/profile/PrivacyScreen';
+import AboutScreen from '../screens/profile/AboutScreen';
 
 // Guest
 import GuestWallScreen from '../screens/auth/GuestWallScreen';
@@ -73,6 +80,11 @@ export type ProfileStackParamList = {
     Help: undefined;
     ChangePassword: undefined;
     MyReviews: undefined;
+    TransactionHistory: undefined;
+    NotificationPreferences: undefined;
+    Terms: undefined;
+    Privacy: undefined;
+    About: undefined;
 };
 
 export type MainTabParamList = {
@@ -152,6 +164,11 @@ const ProfileStackNavigator = () => {
             <ProfileStack.Screen name="Help" component={HelpScreen} />
             <ProfileStack.Screen name="ChangePassword" component={ChangePasswordScreen} />
             <ProfileStack.Screen name="MyReviews" component={MyReviewsScreen} />
+            <ProfileStack.Screen name="TransactionHistory" component={TransactionHistoryScreen} />
+            <ProfileStack.Screen name="NotificationPreferences" component={NotificationPreferencesScreen} />
+            <ProfileStack.Screen name="Terms" component={TermsScreen} />
+            <ProfileStack.Screen name="Privacy" component={PrivacyScreen} />
+            <ProfileStack.Screen name="About" component={AboutScreen} />
         </ProfileStack.Navigator>
     );
 };
@@ -164,7 +181,33 @@ const TabIcon = ({ name, focused }: { name: keyof typeof Ionicons.glyphMap; focu
 // Main Tab Navigator
 const MainNavigator: React.FC = () => {
     const { totalItems } = useAppSelector((state) => state.cart);
+    const { isAuthenticated, pendingAction, user } = useAppSelector((state) => state.auth);
     const insets = useSafeAreaInsets();
+    const dispatch = useAppDispatch();
+    const navigation = useNavigation<any>();
+
+    React.useEffect(() => {
+        if (isAuthenticated && user && !user.name) {
+            // Give a small delay to avoid navigation race conditions
+            setTimeout(() => {
+                navigation.navigate('ProfileSetup', { isNewUser: true });
+            }, 500);
+            return;
+        }
+
+        if (isAuthenticated && pendingAction) {
+            // Short delay to ensure navigators are fully mounted
+            const timer = setTimeout(() => {
+                if (pendingAction.screen === 'BookingForm') {
+                    navigation.navigate('CartTab', { screen: 'BookingForm', params: pendingAction.params });
+                } else {
+                    navigation.navigate(pendingAction.screen, pendingAction.params);
+                }
+                dispatch(setPendingAction(null));
+            }, 150);
+            return () => clearTimeout(timer);
+        }
+    }, [isAuthenticated, pendingAction, navigation, dispatch]);
 
     return (
         <Tab.Navigator

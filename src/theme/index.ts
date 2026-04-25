@@ -440,6 +440,17 @@ export const TYPOGRAPHY = {
         normal: 1.5,
         relaxed: 1.75,
     },
+    
+    // Preset styles
+    h1: { fontSize: 32, fontWeight: '700' as const, lineHeight: 32 * 1.2 },
+    h2: { fontSize: 28, fontWeight: '700' as const, lineHeight: 28 * 1.2 },
+    h3: { fontSize: 24, fontWeight: '600' as const, lineHeight: 24 * 1.2 },
+    h4: { fontSize: 20, fontWeight: '600' as const, lineHeight: 20 * 1.2 },
+    subtitle1: { fontSize: 18, fontWeight: '500' as const, lineHeight: 18 * 1.5 },
+    subtitle2: { fontSize: 16, fontWeight: '500' as const, lineHeight: 16 * 1.5 },
+    body1: { fontSize: 14, fontWeight: '400' as const, lineHeight: 14 * 1.5 },
+    body2: { fontSize: 12, fontWeight: '400' as const, lineHeight: 12 * 1.5 },
+    caption: { fontSize: 10, fontWeight: '400' as const, lineHeight: 10 * 1.5 },
 };
 
 export const SPACING = {

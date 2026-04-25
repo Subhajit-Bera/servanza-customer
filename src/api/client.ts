@@ -2,6 +2,11 @@ import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import { CONFIG } from '../config/constants';
 
+// Lazy import to avoid circular dependency: store → authSlice → client → store
+// We import dynamically so the store is fully initialized before first use.
+let _store: any;
+export const injectStore = (s: any) => { _store = s; };
+
 const BASE_URL = CONFIG.API_BASE_URL;
 
 // Create axios instance
@@ -85,6 +90,13 @@ apiClient.interceptors.response.use(
 
                 await SecureStore.deleteItemAsync('auth_token');
                 await SecureStore.deleteItemAsync('refresh_token');
+
+                // Dispatch logout to Redux so the UI immediately returns to Login screen
+                if (_store) {
+                    const { logout } = await import('../store/slices/authSlice');
+                    _store.dispatch(logout());
+                }
+
                 return Promise.reject(refreshError);
             }
         }
@@ -136,6 +148,10 @@ export const userApi = {
         apiClient.patch(`/users/notifications/${id}/read`),
     markAllNotificationsRead: () =>
         apiClient.patch('/users/notifications/read-all'),
+    getNotificationPreferences: () =>
+        apiClient.get('/users/me/notification-preferences'),
+    updateNotificationPreferences: (data: any) =>
+        apiClient.patch('/users/me/notification-preferences', data),
 };
 
 // Services API
@@ -154,6 +170,8 @@ export const servicesApi = {
 
 // Booking API
 export const bookingApi = {
+    validateCart: (data: { items: any[]; total: number }) =>
+        apiClient.post('/bookings/validate-cart', data),
     createBooking: (data: any) =>
         apiClient.post('/bookings', data),
     getBookings: (params?: { status?: string; page?: number; limit?: number }) =>
@@ -199,6 +217,8 @@ export const paymentApi = {
         bookingId: string;
     }) =>
         apiClient.post('/payments/confirm', data),
+    getPaymentHistory: (params?: { page?: number; limit?: number }) =>
+        apiClient.get('/payments/history', { params }),
 };
 
 // Coupon API

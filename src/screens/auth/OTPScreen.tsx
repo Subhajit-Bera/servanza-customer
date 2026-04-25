@@ -120,11 +120,7 @@ const OTPScreen: React.FC = () => {
             // Verify with backend
             await dispatch(verifyPhoneAuth(idToken)).unwrap();
 
-            // Navigate to main app (handled by RootNavigator)
-            navigation.reset({
-                index: 0,
-                routes: [{ name: 'Splash' }],
-            });
+            // Navigate to main app (handled by App.tsx rendering RootStack)
         } catch (error: any) {
             console.error('OTP verification error:', error);
             Alert.alert(

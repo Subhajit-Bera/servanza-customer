@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
     View,
     Text,
@@ -10,6 +10,7 @@ import {
     ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -17,6 +18,7 @@ import { COLORS, TYPOGRAPHY, SHADOWS, SPACING, BORDER_RADIUS } from '../../theme
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { fetchServices, setSearchQuery } from '../../store/slices/servicesSlice';
 import { addToCart } from '../../store/slices/cartSlice';
+import { useDebounce } from '../../hooks/useDebounce';
 import type { HomeStackParamList } from '../../navigation/MainNavigator';
 import type { Service } from '../../types';
 
@@ -28,22 +30,66 @@ const SearchScreen: React.FC = () => {
 
     const { services, searchQuery, loading } = useAppSelector((state) => state.services);
     const [localQuery, setLocalQuery] = useState(searchQuery);
-    const [debounceTimeout, setDebounceTimeout] = useState<NodeJS.Timeout | null>(null);
+    const debouncedQuery = useDebounce(localQuery, 500);
+    const [recentSearches, setRecentSearches] = useState<string[]>([]);
+
+    const TRENDING_SEARCHES = ['AC Service', 'Home Cleaning', 'Electrician', 'Plumber'];
+
+    useEffect(() => {
+        loadRecentSearches();
+    }, []);
+
+    useEffect(() => {
+        if (debouncedQuery !== searchQuery) {
+            dispatch(setSearchQuery(debouncedQuery));
+            dispatch(fetchServices({ search: debouncedQuery }));
+        }
+    }, [debouncedQuery, dispatch, searchQuery]);
+
+    const loadRecentSearches = async () => {
+        try {
+            const saved = await AsyncStorage.getItem('servanza_recent_searches');
+            if (saved) {
+                setRecentSearches(JSON.parse(saved));
+            }
+        } catch (e) {
+            console.error('Failed to load recent searches', e);
+        }
+    };
+
+    const saveRecentSearch = async (query: string) => {
+        if (!query.trim()) return;
+        try {
+            const q = query.trim();
+            const updated = [q, ...recentSearches.filter(item => item.toLowerCase() !== q.toLowerCase())].slice(0, 5);
+            setRecentSearches(updated);
+            await AsyncStorage.setItem('servanza_recent_searches', JSON.stringify(updated));
+        } catch (e) {
+            console.error('Failed to save recent search', e);
+        }
+    };
+
+    const handleClearRecent = async () => {
+        setRecentSearches([]);
+        await AsyncStorage.removeItem('servanza_recent_searches');
+    };
+
+    const handleSearchSubmit = () => {
+        if (localQuery) {
+            saveRecentSearch(localQuery);
+        }
+    };
 
     const handleSearch = useCallback((text: string) => {
         setLocalQuery(text);
+    }, []);
 
-        if (debounceTimeout) {
-            clearTimeout(debounceTimeout);
-        }
-
-        const timeout = setTimeout(() => {
-            dispatch(setSearchQuery(text));
-            dispatch(fetchServices({ search: text }));
-        }, 500);
-
-        setDebounceTimeout(timeout);
-    }, [debounceTimeout]);
+    const handleSelectRecentOrTrending = (query: string) => {
+        setLocalQuery(query);
+        saveRecentSearch(query);
+        dispatch(setSearchQuery(query));
+        dispatch(fetchServices({ search: query }));
+    };
 
     const handleServicePress = (serviceId: string) => {
         navigation.navigate('ServiceDetails', { serviceId });
@@ -112,6 +158,7 @@ const SearchScreen: React.FC = () => {
                         placeholderTextColor={COLORS.mediumGray}
                         value={localQuery}
                         onChangeText={handleSearch}
+                        onSubmitEditing={handleSearchSubmit}
                         autoFocus
                         returnKeyType="search"
                     />
@@ -123,8 +170,49 @@ const SearchScreen: React.FC = () => {
                 </View>
             </View>
 
-            {/* Results */}
-            {loading ? (
+            {/* Results or Suggestions */}
+            {!localQuery ? (
+                <View style={styles.suggestionsContainer}>
+                    {recentSearches.length > 0 && (
+                        <View style={styles.suggestionSection}>
+                            <View style={styles.suggestionHeader}>
+                                <Text style={styles.suggestionTitle}>Recent Searches</Text>
+                                <TouchableOpacity onPress={handleClearRecent}>
+                                    <Text style={styles.clearText}>Clear</Text>
+                                </TouchableOpacity>
+                            </View>
+                            <View style={styles.chipContainer}>
+                                {recentSearches.map((term, index) => (
+                                    <TouchableOpacity 
+                                        key={`recent-${index}`} 
+                                        style={styles.chip}
+                                        onPress={() => handleSelectRecentOrTrending(term)}
+                                    >
+                                        <Ionicons name="time-outline" size={16} color={COLORS.darkGray} />
+                                        <Text style={styles.chipText}>{term}</Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
+                        </View>
+                    )}
+
+                    <View style={styles.suggestionSection}>
+                        <Text style={styles.suggestionTitle}>Trending Services</Text>
+                        <View style={styles.chipContainer}>
+                            {TRENDING_SEARCHES.map((term, index) => (
+                                <TouchableOpacity 
+                                    key={`trending-${index}`} 
+                                    style={styles.chip}
+                                    onPress={() => handleSelectRecentOrTrending(term)}
+                                >
+                                    <Ionicons name="trending-up" size={16} color={COLORS.primary} />
+                                    <Text style={styles.chipText}>{term}</Text>
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+                    </View>
+                </View>
+            ) : loading ? (
                 <View style={styles.loadingContainer}>
                     <ActivityIndicator size="large" color={COLORS.primary} />
                 </View>
@@ -147,15 +235,8 @@ const SearchScreen: React.FC = () => {
                     ListEmptyComponent={
                         <View style={styles.emptyContainer}>
                             <Ionicons name="search" size={48} color={COLORS.lightGray} />
-                            <Text style={styles.emptyTitle}>
-                                {localQuery ? 'No results found' : 'Start searching'}
-                            </Text>
-                            <Text style={styles.emptyText}>
-                                {localQuery
-                                    ? 'Try a different search term'
-                                    : 'Search for services you need'
-                                }
-                            </Text>
+                            <Text style={styles.emptyTitle}>No results found</Text>
+                            <Text style={styles.emptyText}>Try a different search term</Text>
                         </View>
                     }
                 />
@@ -243,6 +324,96 @@ const styles = StyleSheet.create({
     },
     serviceInfo: {
         padding: SPACING.md,
+    },
+    serviceTitle: {
+        fontSize: TYPOGRAPHY.fontSize.md,
+        fontWeight: TYPOGRAPHY.fontWeight.semibold,
+        color: COLORS.charcoal,
+    },
+    serviceMetaRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: 4,
+        marginBottom: 8,
+        gap: 4,
+    },
+    serviceDuration: {
+        fontSize: TYPOGRAPHY.fontSize.xs,
+        color: COLORS.mediumGray,
+    },
+    servicePriceRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    servicePrice: {
+        fontSize: TYPOGRAPHY.fontSize.md,
+        fontWeight: TYPOGRAPHY.fontWeight.bold,
+        color: COLORS.primary,
+    },
+    addButton: {
+        backgroundColor: COLORS.primary,
+        padding: 6,
+        borderRadius: BORDER_RADIUS.md,
+    },
+    emptyContainer: {
+        alignItems: 'center',
+        paddingVertical: 60,
+    },
+    emptyTitle: {
+        fontSize: TYPOGRAPHY.fontSize.lg,
+        fontWeight: TYPOGRAPHY.fontWeight.semibold,
+        color: COLORS.darkGray,
+        marginTop: 16,
+        marginBottom: 8,
+    },
+    emptyText: {
+        fontSize: TYPOGRAPHY.fontSize.md,
+        color: COLORS.mediumGray,
+        textAlign: 'center',
+    },
+    suggestionsContainer: {
+        flex: 1,
+        padding: SPACING.lg,
+    },
+    suggestionSection: {
+        marginBottom: SPACING.xl,
+    },
+    suggestionHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: SPACING.sm,
+    },
+    suggestionTitle: {
+        fontSize: TYPOGRAPHY.fontSize.md,
+        fontWeight: TYPOGRAPHY.fontWeight.bold,
+        color: COLORS.charcoal,
+    },
+    clearText: {
+        fontSize: TYPOGRAPHY.fontSize.sm,
+        color: COLORS.error,
+        fontWeight: TYPOGRAPHY.fontWeight.medium,
+    },
+    chipContainer: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: SPACING.sm,
+    },
+    chip: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: COLORS.white,
+        paddingHorizontal: SPACING.md,
+        paddingVertical: 8,
+        borderRadius: 20,
+        gap: 6,
+        borderWidth: 1,
+        borderColor: COLORS.lightGray,
+    },
+    chipText: {
+        fontSize: TYPOGRAPHY.fontSize.sm,
+        color: COLORS.charcoal,
     },
     serviceTitle: {
         fontSize: TYPOGRAPHY.fontSize.md,

@@ -16,10 +16,14 @@ export const store = configureStore({
     },
     middleware: (getDefaultMiddleware) =>
         getDefaultMiddleware({
-            serializableCheck: false,
+            serializableCheck: {
+                // Redux Toolkit's async thunks include the original promise in action.meta,
+                // which is non-serializable by design. Safe to ignore these paths.
+                ignoredActionPaths: ['meta.arg', 'meta.baseQueryMeta'],
+                ignoredPaths: [],
+            },
         }),
 });
 
 export type RootState = ReturnType<typeof store.getState>;
 export type AppDispatch = typeof store.dispatch;
-

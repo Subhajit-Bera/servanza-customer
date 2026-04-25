@@ -754,6 +754,7 @@ import {
     ActivityIndicator,
     Share,
     FlatList,
+    Dimensions,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -762,20 +763,24 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { COLORS, TYPOGRAPHY, SHADOWS, SPACING, BORDER_RADIUS, formatCurrency } from '../../theme';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { fetchServiceById, clearSelectedService } from '../../store/slices/servicesSlice';
-import { addToCart } from '../../store/slices/cartSlice';
+import { addToCart, updateQuantity, removeFromCart } from '../../store/slices/cartSlice';
 import { addToFavorites, removeFromFavorites } from '../../store/slices/favoritesSlice';
 import { servicesApi } from '../../api/client';
+import { useAuthGate } from '../../hooks/useAuthGate';
 import type { HomeStackParamList } from '../../navigation/MainNavigator';
 import type { Review } from '../../types';
 
 type ServiceDetailsRouteProp = RouteProp<HomeStackParamList, 'ServiceDetails'>;
 type ServiceDetailsNavigationProp = StackNavigationProp<HomeStackParamList, 'ServiceDetails'>;
 
+const { width } = Dimensions.get('window');
+
 const ServiceDetailsScreen: React.FC = () => {
     const navigation = useNavigation<ServiceDetailsNavigationProp>();
     const route = useRoute<ServiceDetailsRouteProp>();
     const dispatch = useAppDispatch();
     const insets = useSafeAreaInsets();
+    const { requireAuth } = useAuthGate();
 
     const { serviceId } = route.params;
     const { selectedService: service, loading } = useAppSelector((state) => state.services);
@@ -793,6 +798,10 @@ const ServiceDetailsScreen: React.FC = () => {
     const [reviews, setReviews] = useState<Review[]>([]);
     const [reviewsLoading, setReviewsLoading] = useState(false);
     const [showDescription, setShowDescription] = useState(false);
+    const [activeImage, setActiveImage] = useState(0);
+    const images = service?.imageUrls?.length 
+        ? service.imageUrls 
+        : (service?.imageUrl ? [service.imageUrl] : []);
 
     useEffect(() => {
         dispatch(fetchServiceById(serviceId));
@@ -833,12 +842,14 @@ const ServiceDetailsScreen: React.FC = () => {
     };
 
     const handleToggleFavorite = () => {
-        if (!service) return;
-        if (isFavorite) {
-            dispatch(removeFromFavorites(serviceId));
-        } else {
-            dispatch(addToFavorites(service));
-        }
+        requireAuth(() => {
+            if (!service) return;
+            if (isFavorite) {
+                dispatch(removeFromFavorites(serviceId));
+            } else {
+                dispatch(addToFavorites(service));
+            }
+        }, 'ServiceDetails', { serviceId });
     };
 
     const handleShare = async () => {
@@ -923,8 +934,36 @@ const ServiceDetailsScreen: React.FC = () => {
             >
                 {/* Header Image */}
                 <View style={styles.imageContainer}>
-                    {service.imageUrl ? (
-                        <Image source={{ uri: service.imageUrl }} style={styles.image} />
+                    {images.length > 0 ? (
+                        <>
+                            <FlatList
+                                horizontal
+                                pagingEnabled
+                                data={images}
+                                keyExtractor={(_, index) => index.toString()}
+                                renderItem={({ item }) => (
+                                    <Image source={{ uri: item }} style={[styles.image, { width }]} />
+                                )}
+                                showsHorizontalScrollIndicator={false}
+                                onMomentumScrollEnd={(e) => {
+                                    const index = Math.round(e.nativeEvent.contentOffset.x / width);
+                                    setActiveImage(index);
+                                }}
+                            />
+                            {images.length > 1 && (
+                                <View style={styles.imageDots}>
+                                    {images.map((_, i) => (
+                                        <View
+                                            key={i}
+                                            style={[
+                                                styles.imageDot,
+                                                i === activeImage && styles.imageDotActive,
+                                            ]}
+                                        />
+                                    ))}
+                                </View>
+                            )}
+                        </>
                     ) : (
                         <View style={styles.imagePlaceholder}>
                             <Ionicons name="construct" size={60} color={COLORS.textLight} />
@@ -1146,26 +1185,60 @@ const ServiceDetailsScreen: React.FC = () => {
             {/* Bottom Bar */}
             <SafeAreaView style={styles.bottomBar} edges={['bottom']}>
                 <View style={styles.bottomBarContent}>
-                    <TouchableOpacity
-                        style={styles.cartButton}
-                        onPress={handleAddToCart}
-                    >
-                        <View style={styles.cartIconWrapper}>
-                            <Ionicons name="cart-outline" size={24} color={COLORS.primary} />
-                            {quantityInCart > 0 && (
-                                <View style={styles.badge}>
-                                    <Text style={styles.badgeText}>{quantityInCart}</Text>
+                    {quantityInCart > 0 ? (
+                        <>
+                            <View style={styles.quantitySelector}>
+                                <TouchableOpacity 
+                                    style={styles.qtyButton} 
+                                    onPress={() => {
+                                        if (quantityInCart === 1) {
+                                            dispatch(removeFromCart(serviceId));
+                                        } else {
+                                            dispatch(updateQuantity({ serviceId, quantity: quantityInCart - 1 }));
+                                        }
+                                    }}
+                                >
+                                    <Ionicons 
+                                        name={quantityInCart === 1 ? "trash-outline" : "remove"} 
+                                        size={20} 
+                                        color={quantityInCart === 1 ? COLORS.error : COLORS.textPrimary} 
+                                    />
+                                </TouchableOpacity>
+                                <Text style={styles.qtyText}>{quantityInCart}</Text>
+                                <TouchableOpacity 
+                                    style={styles.qtyButton} 
+                                    onPress={() => {
+                                        dispatch(updateQuantity({ serviceId, quantity: quantityInCart + 1 }));
+                                    }}
+                                >
+                                    <Ionicons name="add" size={20} color={COLORS.textPrimary} />
+                                </TouchableOpacity>
+                            </View>
+                            <TouchableOpacity
+                                style={styles.bookButton}
+                                onPress={() => navigation.getParent()?.navigate('CartTab')}
+                            >
+                                <Text style={styles.bookButtonText}>View Cart</Text>
+                            </TouchableOpacity>
+                        </>
+                    ) : (
+                        <>
+                            <TouchableOpacity
+                                style={styles.cartButton}
+                                onPress={handleAddToCart}
+                            >
+                                <View style={styles.cartIconWrapper}>
+                                    <Ionicons name="cart-outline" size={24} color={COLORS.primary} />
                                 </View>
-                            )}
-                        </View>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                        style={styles.bookButton}
-                        onPress={handleBookNow}
-                    >
-                        <Text style={styles.bookButtonText}>Book Now</Text>
-                    </TouchableOpacity>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={styles.bookButton}
+                                onPress={handleBookNow}
+                            >
+                                <Text style={styles.bookButtonText}>Book Now</Text>
+                            </TouchableOpacity>
+                        </>
+                    )}
                 </View>
             </SafeAreaView>
         </SafeAreaView>
@@ -1203,6 +1276,26 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         backgroundColor: COLORS.inputBackground,
+    },
+    imageDots: {
+        position: 'absolute',
+        bottom: SPACING.xl,
+        left: 0,
+        right: 0,
+        flexDirection: 'row',
+        justifyContent: 'center',
+        alignItems: 'center',
+        gap: SPACING.sm,
+    },
+    imageDot: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+        backgroundColor: 'rgba(255,255,255,0.5)',
+    },
+    imageDotActive: {
+        width: 24,
+        backgroundColor: COLORS.white,
     },
     headerOverlay: {
         position: 'absolute',
@@ -1496,6 +1589,34 @@ const styles = StyleSheet.create({
         fontSize: TYPOGRAPHY.fontSize.lg,
         fontWeight: TYPOGRAPHY.fontWeight.bold,
         color: COLORS.white,
+    },
+    quantitySelector: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        backgroundColor: COLORS.inputBackground,
+        borderRadius: BORDER_RADIUS.xl,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        width: 140,
+        height: 56,
+        paddingHorizontal: SPACING.xs,
+    },
+    qtyButton: {
+        width: 40,
+        height: 40,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: COLORS.white,
+        borderRadius: 20,
+        ...SHADOWS.light,
+    },
+    qtyText: {
+        fontSize: TYPOGRAPHY.fontSize.lg,
+        fontWeight: TYPOGRAPHY.fontWeight.bold,
+        color: COLORS.textPrimary,
+        textAlign: 'center',
+        flex: 1,
     },
 });
 

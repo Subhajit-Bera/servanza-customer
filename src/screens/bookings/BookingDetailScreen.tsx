@@ -86,6 +86,79 @@ const BookingDetailScreen: React.FC = () => {
         );
     }
 
+    const STEPS = [
+        { id: 'PENDING', label: 'Confirmed', icon: 'checkmark-circle' },
+        { id: 'ASSIGNED', label: 'Assigned', icon: 'person' },
+        { id: 'ON_WAY', label: 'On the way', icon: 'bicycle' },
+        { id: 'IN_PROGRESS', label: 'In Progress', icon: 'construct' },
+        { id: 'COMPLETED', label: 'Completed', icon: 'star' },
+    ];
+
+    const getStepIndex = (status: BookingStatus) => {
+        switch (status) {
+            case 'PENDING': case 'QUEUED': return 0;
+            case 'ASSIGNED': case 'ACCEPTED': return 1;
+            case 'ON_WAY': case 'ARRIVED': return 2;
+            case 'IN_PROGRESS': return 3;
+            case 'COMPLETED': return 4;
+            default: return 0;
+        }
+    };
+
+    const currentStepIndex = getStepIndex(booking.status);
+
+    const renderStepper = () => {
+        if (booking.status === 'CANCELLED') {
+            return (
+                <View style={[styles.statusCard, { backgroundColor: COLORS.error + '15' }]}>
+                    <View style={[styles.statusDot, { backgroundColor: COLORS.error }]} />
+                    <Text style={[styles.statusText, { color: COLORS.error }]}>Booking Cancelled</Text>
+                </View>
+            );
+        }
+
+        return (
+            <View style={styles.stepperWrapper}>
+                {STEPS.map((step, index) => {
+                    const isCompleted = index < currentStepIndex;
+                    const isActive = index === currentStepIndex;
+                    const isPending = index > currentStepIndex;
+
+                    return (
+                        <View key={step.id} style={styles.stepItem}>
+                            <View style={styles.stepIndicator}>
+                                <View style={[
+                                    styles.stepCircle,
+                                    isCompleted && styles.stepCircleCompleted,
+                                    isActive && styles.stepCircleActive,
+                                    isPending && styles.stepCirclePending,
+                                ]}>
+                                    <Ionicons 
+                                        name={step.icon as any} 
+                                        size={14} 
+                                        color={isCompleted || isActive ? COLORS.white : COLORS.mediumGray} 
+                                    />
+                                </View>
+                                {index < STEPS.length - 1 && (
+                                    <View style={[
+                                        styles.stepLine,
+                                        isCompleted ? styles.stepLineCompleted : styles.stepLinePending
+                                    ]} />
+                                )}
+                            </View>
+                            <Text style={[
+                                styles.stepLabel,
+                                (isCompleted || isActive) ? styles.stepLabelActive : styles.stepLabelPending
+                            ]}>
+                                {step.label}
+                            </Text>
+                        </View>
+                    );
+                })}
+            </View>
+        );
+    };
+
     const statusConfig = getStatusConfig(booking.status);
     const canTrack = ['ON_WAY', 'ARRIVED'].includes(booking.status);
     const canCancel = ['PENDING', 'ASSIGNED'].includes(booking.status);
@@ -110,13 +183,37 @@ const BookingDetailScreen: React.FC = () => {
                 contentContainerStyle={styles.scrollContent}
                 showsVerticalScrollIndicator={false}
             >
-                {/* Status Card */}
-                <View style={[styles.statusCard, { backgroundColor: statusConfig.color + '15' }]}>
-                    <View style={[styles.statusDot, { backgroundColor: statusConfig.color }]} />
-                    <Text style={[styles.statusText, { color: statusConfig.color }]}>
-                        {statusConfig.label}
-                    </Text>
+                {/* Visual Status Timeline / Stepper */}
+                <View style={styles.stepperContainer}>
+                    {renderStepper()}
                 </View>
+
+                {/* Buddy Arrived Notification Card */}
+                {booking.status === 'ARRIVED' && (
+                    <View style={styles.arrivedCard}>
+                        <View style={styles.arrivedIconBg}>
+                            <Ionicons name="notifications" size={24} color={COLORS.white} />
+                        </View>
+                        <View style={styles.arrivedContent}>
+                            <Text style={styles.arrivedTitle}>Buddy has arrived!</Text>
+                            <Text style={styles.arrivedText}>Please meet your Servanza Buddy at the service location.</Text>
+                        </View>
+                    </View>
+                )}
+
+                {/* OTP Verification Card */}
+                {booking.completionOtp && !['COMPLETED', 'CANCELLED'].includes(booking.status) && (
+                    <View style={styles.otpCard}>
+                        <View style={styles.otpHeader}>
+                            <Ionicons name="shield-checkmark" size={20} color={COLORS.primary} />
+                            <Text style={styles.otpTitle}>Start Service OTP</Text>
+                        </View>
+                        <Text style={styles.otpText}>Share this code with your buddy to start the service.</Text>
+                        <View style={styles.otpBox}>
+                            <Text style={styles.otpCode}>{booking.completionOtp}</Text>
+                        </View>
+                    </View>
+                )}
 
                 {/* Service Info */}
                 <View style={styles.section}>
@@ -315,6 +412,153 @@ const styles = StyleSheet.create({
     statusText: {
         fontSize: TYPOGRAPHY.fontSize.md,
         fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    },
+    stepperContainer: {
+        paddingHorizontal: SPACING.lg,
+        marginTop: SPACING.md,
+        marginBottom: SPACING.md,
+    },
+    stepperWrapper: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'flex-start',
+    },
+    stepItem: {
+        flex: 1,
+        alignItems: 'center',
+    },
+    stepIndicator: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: '100%',
+        position: 'relative',
+    },
+    stepCircle: {
+        width: 28,
+        height: 28,
+        borderRadius: 14,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: COLORS.white,
+        borderWidth: 2,
+        borderColor: COLORS.lightGray,
+        zIndex: 2,
+    },
+    stepCircleCompleted: {
+        backgroundColor: COLORS.primary,
+        borderColor: COLORS.primary,
+    },
+    stepCircleActive: {
+        backgroundColor: COLORS.primary,
+        borderColor: COLORS.primary,
+        transform: [{ scale: 1.1 }],
+    },
+    stepCirclePending: {
+        backgroundColor: COLORS.white,
+        borderColor: COLORS.lightGray,
+    },
+    stepLine: {
+        position: 'absolute',
+        top: 13,
+        left: '50%',
+        width: '100%',
+        height: 2,
+        zIndex: 1,
+    },
+    stepLineCompleted: {
+        backgroundColor: COLORS.primary,
+    },
+    stepLinePending: {
+        backgroundColor: COLORS.lightGray,
+    },
+    stepLabel: {
+        marginTop: SPACING.xs,
+        fontSize: 10,
+        fontWeight: TYPOGRAPHY.fontWeight.medium,
+        textAlign: 'center',
+    },
+    stepLabelActive: {
+        color: COLORS.charcoal,
+        fontWeight: TYPOGRAPHY.fontWeight.bold,
+    },
+    stepLabelPending: {
+        color: COLORS.mediumGray,
+    },
+    arrivedCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: COLORS.primary + '15',
+        marginHorizontal: SPACING.lg,
+        padding: SPACING.md,
+        borderRadius: BORDER_RADIUS.lg,
+        marginBottom: SPACING.md,
+        borderWidth: 1,
+        borderColor: COLORS.primary + '30',
+    },
+    arrivedIconBg: {
+        backgroundColor: COLORS.primary,
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: SPACING.md,
+    },
+    arrivedContent: {
+        flex: 1,
+    },
+    arrivedTitle: {
+        fontSize: TYPOGRAPHY.fontSize.md,
+        fontWeight: TYPOGRAPHY.fontWeight.bold,
+        color: COLORS.charcoal,
+        marginBottom: 2,
+    },
+    arrivedText: {
+        fontSize: TYPOGRAPHY.fontSize.sm,
+        color: COLORS.mediumGray,
+    },
+    otpCard: {
+        backgroundColor: COLORS.white,
+        marginHorizontal: SPACING.lg,
+        padding: SPACING.md,
+        borderRadius: BORDER_RADIUS.lg,
+        marginBottom: SPACING.md,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        borderStyle: 'dashed',
+        alignItems: 'center',
+    },
+    otpHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: SPACING.xs,
+        gap: 6,
+    },
+    otpTitle: {
+        fontSize: TYPOGRAPHY.fontSize.md,
+        fontWeight: TYPOGRAPHY.fontWeight.semibold,
+        color: COLORS.charcoal,
+    },
+    otpText: {
+        fontSize: TYPOGRAPHY.fontSize.sm,
+        color: COLORS.mediumGray,
+        textAlign: 'center',
+        marginBottom: SPACING.sm,
+    },
+    otpBox: {
+        backgroundColor: COLORS.inputBackground,
+        paddingHorizontal: SPACING.xl,
+        paddingVertical: SPACING.sm,
+        borderRadius: BORDER_RADIUS.md,
+        borderWidth: 1,
+        borderColor: COLORS.primary + '40',
+    },
+    otpCode: {
+        fontSize: 24,
+        fontWeight: TYPOGRAPHY.fontWeight.bold,
+        color: COLORS.primary,
+        letterSpacing: 8,
     },
     section: {
         marginBottom: SPACING.lg,

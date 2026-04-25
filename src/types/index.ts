@@ -87,6 +87,7 @@ export interface Service {
     basePrice: number;
     currency: string;
     imageUrl?: string;
+    imageUrls?: string[];
     isActive: boolean;
     category?: Category;
     averageRating?: number;

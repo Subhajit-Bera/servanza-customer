@@ -43,6 +43,31 @@ const TrackBuddyScreen: React.FC = () => {
     const [customerLocation] = useState(DEFAULT_LOCATION);
     const [isMapReady, setIsMapReady] = useState(false);
     const [showEta, setShowEta] = useState(true);
+    const [etaSeconds, setEtaSeconds] = useState<number | null>(null);
+
+    useEffect(() => {
+        if (eta?.minutes != null) {
+            setEtaSeconds(eta.minutes * 60);
+        }
+    }, [eta?.minutes]);
+
+    useEffect(() => {
+        if (etaSeconds === null || etaSeconds <= 0) return;
+
+        const intervalId = setInterval(() => {
+            setEtaSeconds((prev) => (prev != null && prev > 0 ? prev - 1 : 0));
+        }, 1000);
+
+        return () => clearInterval(intervalId);
+    }, [etaSeconds]);
+
+    const formatEta = (seconds: number | null) => {
+        if (seconds == null) return '--:--';
+        if (seconds <= 0) return 'Arriving';
+        const m = Math.floor(seconds / 60);
+        const s = seconds % 60;
+        return `${m}:${s < 10 ? '0' : ''}${s} min`;
+    };
 
     // Fit map to show both markers
     const fitToMarkers = () => {
@@ -165,6 +190,14 @@ const TrackBuddyScreen: React.FC = () => {
                         <Text style={styles.statusPillText}>{connected ? 'Live' : 'Connecting...'}</Text>
                     </View>
                 </View>
+                
+                {/* Offline Banner */}
+                {!connected && (
+                    <View style={styles.offlineBanner}>
+                        <Ionicons name="warning" size={16} color={COLORS.white} />
+                        <Text style={styles.offlineText}>Connection lost. Reconnecting...</Text>
+                    </View>
+                )}
             </SafeAreaView>
 
             {/* Recenter Button */}
@@ -211,7 +244,7 @@ const TrackBuddyScreen: React.FC = () => {
                         {eta && showEta && (
                             <View style={styles.statsContainer}>
                                 <View style={styles.statItem}>
-                                    <Text style={styles.statValue}>{eta.minutes} min</Text>
+                                    <Text style={styles.statValue}>{formatEta(etaSeconds)}</Text>
                                     <Text style={styles.statLabel}>Arriving in</Text>
                                 </View>
                                 <View style={styles.statDivider} />
@@ -287,6 +320,23 @@ const styles = StyleSheet.create({
         width: 8,
         height: 8,
         borderRadius: 4,
+    },
+    offlineBanner: {
+        backgroundColor: COLORS.error,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: SPACING.sm,
+        marginHorizontal: SPACING.lg,
+        marginTop: SPACING.md,
+        borderRadius: BORDER_RADIUS.md,
+        gap: SPACING.xs,
+        ...SHADOWS.small,
+    },
+    offlineText: {
+        color: COLORS.white,
+        fontSize: TYPOGRAPHY.fontSize.sm,
+        fontWeight: TYPOGRAPHY.fontWeight.medium,
     },
     centerButton: {
         position: 'absolute',

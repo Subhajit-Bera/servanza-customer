@@ -118,17 +118,15 @@ const SplashScreen: React.FC = () => {
         try {
             const onboarded = await AsyncStorage.getItem(ONBOARDED_KEY);
             if (onboarded === 'true') {
-                navigation.replace('Login');
+                // Already onboarded, enter guest mode automatically (Guest-First)
+                dispatch(enterGuestMode());
             } else {
+                // First time launch, show onboarding
                 navigation.replace('Onboarding');
             }
         } catch {
-            navigation.replace('Login');
+            dispatch(enterGuestMode());
         }
-        // NOTE: We do NOT dispatch enterGuestMode() here.
-        // The Auth stack (showMain=false) stays open until the user explicitly
-        // taps "Continue as Guest" (OnboardingScreen / LoginScreen) which
-        // dispatches enterGuestMode() → showMain=true → root switches to Main.
     };
 
 

@@ -55,7 +55,6 @@ const HomeScreen: React.FC = () => {
     const [refreshing, setRefreshing] = useState(false);
     const [activePromo, setActivePromo] = useState(0);
     const promoRef = useRef<FlatList>(null);
-    const promoAutoScrollRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const [currentAddress, setCurrentAddress] = useState<string | null>(null);
     const [locationDenied, setLocationDenied] = useState(false);
     const [promotions, setPromotions] = useState<Promotion[]>([]);
@@ -70,20 +69,21 @@ const HomeScreen: React.FC = () => {
         fetchPromotions();
     }, []);
 
-    // Auto-scroll promo banner every 3 seconds
-    useEffect(() => {
-        if (promotions.length <= 1) return;
-        promoAutoScrollRef.current = setInterval(() => {
-            setActivePromo((prev) => {
-                const next = (prev + 1) % promotions.length;
-                promoRef.current?.scrollToIndex({ index: next, animated: true });
-                return next;
-            });
-        }, 3000);
-        return () => {
-            if (promoAutoScrollRef.current) clearInterval(promoAutoScrollRef.current);
-        };
-    }, [promotions.length]);
+    // Auto-scroll promo banner every 3 seconds — only while screen is focused
+    // useFocusEffect clears the timer when user switches tabs (screen doesn't unmount in a tab navigator)
+    useFocusEffect(
+        useCallback(() => {
+            if (promotions.length <= 1) return;
+            const timer = setInterval(() => {
+                setActivePromo((prev) => {
+                    const next = (prev + 1) % promotions.length;
+                    promoRef.current?.scrollToIndex({ index: next, animated: true });
+                    return next;
+                });
+            }, 3000);
+            return () => clearInterval(timer);
+        }, [promotions.length])
+    );
 
     // Re-fetch all services when screen comes into focus (fixes category bug)
     useFocusEffect(

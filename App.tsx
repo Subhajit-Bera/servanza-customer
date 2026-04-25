@@ -1,17 +1,30 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Provider } from 'react-redux';
+import * as SplashScreen from 'expo-splash-screen';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { store } from './src/store';
 import { useAppSelector, useAppDispatch } from './src/store/hooks';
 import AuthNavigator from './src/navigation/AuthNavigator';
 import MainNavigator from './src/navigation/MainNavigator';
+import ProfileSetupScreen from './src/screens/auth/ProfileSetupScreen';
 import { connectSocket, disconnectSocket, addSocketListener, removeSocketListener } from './src/services/socketClient';
 import { updateBookingStatus } from './src/store/slices/bookingsSlice';
+import { loadCart } from './src/store/slices/cartSlice';
 import { useNotifications, useNotificationNavigation } from './src/hooks/useNotifications';
 import { useLocation } from './src/hooks/useLocation';
+import { ErrorBoundary } from './src/components/ErrorBoundary';
+import { OfflineBanner } from './src/components/OfflineBanner';
+import { injectStore } from './src/api/client';
+
+// Inject the Redux store into the Axios interceptor so it can dispatch logout() on auth failure
+injectStore(store);
+
+// Keep splash screen visible until we have hydrated local storage into Redux
+SplashScreen.preventAutoHideAsync().catch(() => {/* already hidden */});
 
 // Root Navigator that switches between Auth and Main based on auth state
 const RootStack = createStackNavigator();
@@ -32,23 +45,37 @@ const RootNavigator: React.FC = () => {
   // Request location permission on app start (non-blocking)
   useLocation(true);
 
-  // Load cart from storage on app start
+  // Hydrate cart from AsyncStorage before first render
+  // Uses a local ready flag that we check before hiding the splash screen.
+  const [isHydrated, setIsHydrated] = useState(false);
+
   useEffect(() => {
-    const loadCart = async () => {
+    const hydrateFromStorage = async () => {
       try {
-        const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
         const cartData = await AsyncStorage.getItem('servanza_cart');
         if (cartData) {
           const items = JSON.parse(cartData);
-          const { loadCart: loadCartAction } = await import('./src/store/slices/cartSlice');
-          dispatch(loadCartAction(items));
+          dispatch(loadCart(items));
         }
       } catch (error) {
-        console.error('Failed to load cart:', error);
+        console.error('Failed to hydrate cart:', error);
+      } finally {
+        setIsHydrated(true);
+        // Only hide splash once auth check AND cart hydration are both done
+        if (!isLoading) {
+          SplashScreen.hideAsync();
+        }
       }
     };
-    loadCart();
+    hydrateFromStorage();
   }, [dispatch]);
+
+  // Hide splash when both auth check and cart hydration are complete
+  useEffect(() => {
+    if (!isLoading && isHydrated) {
+      SplashScreen.hideAsync();
+    }
+  }, [isLoading, isHydrated]);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -85,7 +112,14 @@ const RootNavigator: React.FC = () => {
       {isAuthenticated && <NotificationHandler />}
       <RootStack.Navigator screenOptions={{ headerShown: false }}>
         {showMain ? (
-          <RootStack.Screen name="Main" component={MainNavigator} />
+          <RootStack.Group>
+            <RootStack.Screen name="Main" component={MainNavigator} />
+            <RootStack.Screen 
+              name="ProfileSetup" 
+              component={ProfileSetupScreen} 
+              options={{ presentation: 'modal' }} 
+            />
+          </RootStack.Group>
         ) : (
           <RootStack.Screen name="Auth" component={AuthNavigator} />
         )}
@@ -98,10 +132,13 @@ const RootNavigator: React.FC = () => {
 const AppContent: React.FC = () => {
   return (
     <SafeAreaProvider>
-      <NavigationContainer>
-        <StatusBar style="dark" />
-        <RootNavigator />
-      </NavigationContainer>
+      <ErrorBoundary>
+        <NavigationContainer>
+          <StatusBar style="dark" />
+          <OfflineBanner />
+          <RootNavigator />
+        </NavigationContainer>
+      </ErrorBoundary>
     </SafeAreaProvider>
   );
 };

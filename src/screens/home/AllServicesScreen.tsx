@@ -177,7 +177,7 @@ const AllServicesScreen: React.FC = () => {
                     {service.title}
                 </Text>
                 {service.description?.shortDescription ? (
-                    <Text style={styles.serviceDescription} numberOfLines={2}>
+                    <Text style={styles.serviceDescription} numberOfLines={3}>
                         {service.description.shortDescription}
                     </Text>
                 ) : null}
@@ -607,11 +607,11 @@ const styles = StyleSheet.create({
         fontSize: TYPOGRAPHY.fontSize.md,
         fontWeight: TYPOGRAPHY.fontWeight.semibold,
         color: COLORS.textPrimary,
-        marginBottom: 4,
+        marginBottom: 2,
     },
     serviceDescription: {
-        fontSize: TYPOGRAPHY.fontSize.sm,
-        color: COLORS.textSecondary,
+        fontSize: 13, // Increased from TYPOGRAPHY.fontSize.sm (12)
+        color: '#64748B', // Separate slate gray color for short description
         marginBottom: SPACING.sm,
         lineHeight: 18,
     },

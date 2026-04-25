@@ -22,6 +22,7 @@ import { fetchAddresses } from '../../store/slices/authSlice';
 import { createBooking } from '../../store/slices/bookingsSlice';
 import { clearCart } from '../../store/slices/cartSlice';
 import { requireLocationPermission } from '../../hooks/useLocation';
+import { bookingApi } from '../../api/client';
 import type { CartStackParamList } from '../../navigation/MainNavigator';
 import type { Address } from '../../types';
 
@@ -169,6 +170,13 @@ const BookingFormScreen: React.FC = () => {
         requireLocationPermission(
             async () => {
                 try {
+                    // Pre-flight cart validation
+                    const mappedItems = items.map(item => ({
+                        serviceId: item.service.id,
+                        quantity: item.quantity,
+                    }));
+                    await bookingApi.validateCart({ items: mappedItems, total });
+
                     // For simplicity, book the first service in cart (assuming single service booking flow for now)
                     // In a real app, we might create an order with multiple items
                     const firstItem = items[0];
@@ -209,9 +217,10 @@ const BookingFormScreen: React.FC = () => {
                     } else {
                         Alert.alert('Booking Failed', 'Unable to create booking. Please try again.');
                     }
-                } catch (error) {
+                } catch (error: any) {
                     console.error('Booking error:', error);
-                    Alert.alert('Error', 'An unexpected error occurred');
+                    const msg = error?.response?.data?.message || 'An unexpected error occurred';
+                    Alert.alert('Error', msg);
                 }
             },
             () => {

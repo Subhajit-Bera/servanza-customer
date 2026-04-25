@@ -8,6 +8,7 @@ import {
     KeyboardAvoidingView,
     Platform,
     ScrollView,
+    ActivityIndicator,
     Alert,
     Image,
     StatusBar as RNStatusBar,
@@ -215,11 +216,6 @@ const LoginScreen: React.FC = () => {
                             <Image
                                 source={{ uri: 'https://images.unsplash.com/photo-1527515637462-cff94eecc1ac?w=800' }}
                                 style={styles.headerImage}
-                            />
-                            {/* Top dark gradient to make status bar icons legible */}
-                            <LinearGradient
-                                colors={['rgba(0,0,0,0.5)', 'transparent']}
-                                style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 90 }}
                             />
                             {/* Bottom gradient */}
                             <LinearGradient
