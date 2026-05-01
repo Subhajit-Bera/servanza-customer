@@ -29,7 +29,7 @@ export const useChat = ({ bookingId, currentUserId }: UseChatOptions) => {
     const [typingUser, setTypingUser] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const [unreadCount, setUnreadCount] = useState(0);
-    const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Load chat history via REST
     const loadHistory = useCallback(async () => {
