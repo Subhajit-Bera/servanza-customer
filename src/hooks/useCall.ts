@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { getSocket, addSocketListener, removeSocketListener } from '../services/socketClient';
+import { WEBRTC_CONFIG } from '../config/constants';
+import InCallManager from 'react-native-incall-manager';
 
 export type CallState = 'idle' | 'calling' | 'ringing' | 'connected' | 'ended';
 
@@ -30,11 +32,9 @@ export const useCall = ({ bookingId, currentUserId, onIncomingCall }: UseCallOpt
 
     const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
     const localStreamRef = useRef<MediaStream | null>(null);
-    const durationIntervalRef = useRef<NodeJS.Timeout | null>(null);
-    const iceServersRef = useRef<RTCIceServer[]>([
-        { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' },
-    ]);
+    const durationIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const callIdRef = useRef<string | null>(null);
+    const iceServersRef = useRef<RTCIceServer[]>(WEBRTC_CONFIG.iceServers);
 
     // Clean up WebRTC resources
     const cleanupCall = useCallback(() => {
@@ -53,6 +53,9 @@ export const useCall = ({ bookingId, currentUserId, onIncomingCall }: UseCallOpt
             peerConnectionRef.current = null;
         }
 
+        // Stop InCallManager audio session
+        InCallManager.stop();
+
         setCallDuration(0);
         setIsMuted(false);
         setIsSpeaker(false);
@@ -67,9 +70,9 @@ export const useCall = ({ bookingId, currentUserId, onIncomingCall }: UseCallOpt
             const pc = new RTCPeerConnection({ iceServers: servers });
 
             pc.onicecandidate = (event) => {
-                if (event.candidate && callId && socket?.connected) {
+                if (event.candidate && callIdRef.current && socket?.connected) {
                     socket.emit('call:ice-candidate', {
-                        callId,
+                        callId: callIdRef.current,
                         candidate: event.candidate.toJSON(),
                     });
                 }
@@ -85,15 +88,19 @@ export const useCall = ({ bookingId, currentUserId, onIncomingCall }: UseCallOpt
             peerConnectionRef.current = pc;
             return pc;
         },
-        [callId]
+        []
     );
 
-    // Start duration timer
+    // Start duration timer and InCallManager audio session
     const startDurationTimer = useCallback(() => {
         setCallDuration(0);
         durationIntervalRef.current = setInterval(() => {
             setCallDuration((prev) => prev + 1);
         }, 1000);
+
+        // Start InCallManager: routes audio to earpiece, enables proximity sensor
+        InCallManager.start({ media: 'audio' });
+        InCallManager.setForceSpeakerphoneOn(false);
     }, []);
 
     // Initiate a call
@@ -186,17 +193,18 @@ export const useCall = ({ bookingId, currentUserId, onIncomingCall }: UseCallOpt
     // End the call
     const endCall = useCallback(() => {
         const socket = getSocket();
-        if (callId && socket?.connected) {
-            socket.emit('call:end', { callId });
+        if (callIdRef.current && socket?.connected) {
+            socket.emit('call:end', { callId: callIdRef.current });
         }
 
         cleanupCall();
         setCallState('ended');
         setCallId(null);
+        callIdRef.current = null;
 
         // Reset to idle after a short delay
         setTimeout(() => setCallState('idle'), 2000);
-    }, [callId, cleanupCall]);
+    }, [cleanupCall]);
 
     // Toggle mute
     const toggleMute = useCallback(() => {
@@ -209,23 +217,28 @@ export const useCall = ({ bookingId, currentUserId, onIncomingCall }: UseCallOpt
         }
     }, []);
 
-    // Toggle speaker (handled natively by react-native-webrtc InCallManager)
+    // Toggle speaker — routes audio between earpiece and loudspeaker
     const toggleSpeaker = useCallback(() => {
-        setIsSpeaker((prev) => !prev);
-        // Note: Actual speaker toggle requires InCallManager from react-native-webrtc
+        setIsSpeaker((prev) => {
+            const newValue = !prev;
+            InCallManager.setForceSpeakerphoneOn(newValue);
+            return newValue;
+        });
     }, []);
 
     // Socket event listeners
     useEffect(() => {
-        const handleCallInitiated = (data: { callId: string; iceServers: RTCIceServer[] }) => {
+        const handleCallInitiated = (data: { callId: string; iceServers?: RTCIceServer[] }) => {
             setCallId(data.callId);
-            iceServersRef.current = data.iceServers;
+            callIdRef.current = data.callId;
+            if (data.iceServers) iceServersRef.current = data.iceServers;
         };
 
         const handleIncomingCall = (data: IncomingCallData) => {
             if (data.bookingId === bookingId) {
                 setCallState('ringing');
                 setCallId(data.callId);
+                callIdRef.current = data.callId;
                 onIncomingCall?.(data);
             }
         };
@@ -260,6 +273,7 @@ export const useCall = ({ bookingId, currentUserId, onIncomingCall }: UseCallOpt
             cleanupCall();
             setCallState('ended');
             setCallId(null);
+            callIdRef.current = null;
             setTimeout(() => setCallState('idle'), 2000);
         };
 
@@ -267,6 +281,7 @@ export const useCall = ({ bookingId, currentUserId, onIncomingCall }: UseCallOpt
             cleanupCall();
             setCallState('ended');
             setCallId(null);
+            callIdRef.current = null;
             setTimeout(() => setCallState('idle'), 2000);
         };
 
@@ -274,6 +289,7 @@ export const useCall = ({ bookingId, currentUserId, onIncomingCall }: UseCallOpt
             cleanupCall();
             setCallState('idle');
             setCallId(null);
+            callIdRef.current = null;
         };
 
         addSocketListener('call:initiated', handleCallInitiated);

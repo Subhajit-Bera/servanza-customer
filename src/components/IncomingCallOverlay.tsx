@@ -13,6 +13,7 @@ import { useNavigation } from '@react-navigation/native';
 import { COLORS } from '../theme';
 import { useSocketEvent } from '../hooks/useSocket';
 import { IncomingCallData } from '../hooks/useCall';
+import InCallManager from 'react-native-incall-manager';
 
 const { width } = Dimensions.get('window');
 
@@ -29,6 +30,8 @@ const IncomingCallOverlay = () => {
     useEffect(() => {
         onIncomingCall((data) => {
             setIncomingCall(data);
+            // Play ringtone and vibrate
+            InCallManager.startRingtone('_DEFAULT_', [1000, 500], 'playback', 30);
             Animated.spring(translateY, {
                 toValue: 0,
                 useNativeDriver: true,
@@ -37,6 +40,7 @@ const IncomingCallOverlay = () => {
         });
 
         const closeOverlay = () => {
+            InCallManager.stopRingtone();
             Animated.timing(translateY, {
                 toValue: -200,
                 duration: 300,
@@ -51,17 +55,21 @@ const IncomingCallOverlay = () => {
     if (!incomingCall) return null;
 
     const handleAccept = () => {
-        // Navigate to Call screen which will automatically answer
+        // Stop ringtone before navigating
+        InCallManager.stopRingtone();
+        // Navigate to Call screen and pass the incoming call data for answering
         navigation.navigate('VoiceCall', {
             bookingId: incomingCall.bookingId,
             buddyName: incomingCall.caller.name,
             isIncoming: true,
             callId: incomingCall.callId,
+            _incomingCallData: incomingCall,
         });
         setIncomingCall(null);
     };
 
     const handleReject = () => {
+        InCallManager.stopRingtone();
         import('../services/socketClient').then(({ getSocket }) => {
             const socket = getSocket();
             if (socket?.connected) {

@@ -36,17 +36,28 @@ const VoiceCallScreen = () => {
         isMuted,
         isSpeaker,
         initiateCall,
+        answerCall,
         endCall,
         toggleMute,
         toggleSpeaker,
     } = useCall({ bookingId, currentUserId });
 
-    // Initiate call on mount if it's an outgoing call
+    // Initiate or answer call on mount
     useEffect(() => {
-        if (!isIncoming && callState === 'idle') {
-            initiateCall();
+        if (callState === 'idle') {
+            if (!isIncoming) {
+                initiateCall();
+            }
         }
-    }, [isIncoming, callState, initiateCall]);
+        if (isIncoming && callState === 'ringing') {
+            // The IncomingCallOverlay already set the state to ringing;
+            // now the user accepted, so answer the call
+            const incomingData = route.params as any;
+            if (incomingData._incomingCallData) {
+                answerCall(incomingData._incomingCallData);
+            }
+        }
+    }, [isIncoming, callState, initiateCall, answerCall, route.params]);
 
     // Handle end/disconnect
     useEffect(() => {
