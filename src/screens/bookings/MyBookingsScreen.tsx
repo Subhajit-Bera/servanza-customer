@@ -138,9 +138,9 @@ const MyBookingsScreen: React.FC = () => {
         <SafeAreaView style={styles.container} edges={['top']}>
             <View style={styles.header}>
                 <Text style={styles.headerTitle}>My Bookings</Text>
-                <TouchableOpacity style={styles.historyButton}>
+                {/* <TouchableOpacity style={styles.historyButton}>
                     <Ionicons name="time-outline" size={24} color={COLORS.textPrimary} />
-                </TouchableOpacity>
+                </TouchableOpacity> */}
             </View>
 
             <View style={styles.wrapper}>

@@ -19,6 +19,7 @@ import {
     signInWithPhoneNumber,
     signInWithCredential,
     PhoneAuthProvider,
+    getIdToken,
 } from '@react-native-firebase/auth';
 import { COLORS, TYPOGRAPHY, SHADOWS, SPACING, BORDER_RADIUS } from '../../theme';
 import { useAppDispatch } from '../../store/hooks';
@@ -122,7 +123,7 @@ const OTPScreen: React.FC = () => {
             const userCredential = await signInWithCredential(getAuth(), credential);
 
             // Get Firebase ID token
-            const idToken = await userCredential.user.getIdToken();
+            const idToken = await getIdToken(userCredential.user);
 
             if (!idToken) {
                 throw new Error('Failed to get ID token');

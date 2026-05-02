@@ -23,6 +23,7 @@ import {
     signInWithCredential,
     sendPasswordResetEmail,
     GoogleAuthProvider,
+    getIdToken,
 } from '@react-native-firebase/auth';
 import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 import { COLORS, TYPOGRAPHY, SHADOWS, SPACING, BORDER_RADIUS } from '../../theme';
@@ -89,7 +90,7 @@ const LoginScreen: React.FC = () => {
             }
 
             // Get Firebase ID token and send to backend
-            const idToken = await userCredential.user.getIdToken();
+            const idToken = await getIdToken(userCredential.user);
             await dispatch(verifyPhoneAuth(idToken)).unwrap();
 
         } catch (error: any) {
@@ -149,7 +150,7 @@ const LoginScreen: React.FC = () => {
             const userCredential = await signInWithCredential(getAuth(), googleCredential);
 
             // Get Firebase ID token and send to backend
-            const firebaseIdToken = await userCredential.user.getIdToken();
+            const firebaseIdToken = await getIdToken(userCredential.user);
             await dispatch(verifyPhoneAuth(firebaseIdToken)).unwrap();
 
         } catch (error: any) {
