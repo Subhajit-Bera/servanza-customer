@@ -31,7 +31,7 @@ const IncomingCallOverlay = () => {
         onIncomingCall((data) => {
             setIncomingCall(data);
             // Play ringtone and vibrate
-            InCallManager.startRingtone('_DEFAULT_', [1000, 500], 'playback', 30);
+            InCallManager?.startRingtone('_DEFAULT_', [1000, 500], 'playback', 30);
             Animated.spring(translateY, {
                 toValue: 0,
                 useNativeDriver: true,
@@ -40,7 +40,7 @@ const IncomingCallOverlay = () => {
         });
 
         const closeOverlay = () => {
-            InCallManager.stopRingtone();
+            InCallManager?.stopRingtone();
             Animated.timing(translateY, {
                 toValue: -200,
                 duration: 300,
@@ -56,7 +56,7 @@ const IncomingCallOverlay = () => {
 
     const handleAccept = () => {
         // Stop ringtone before navigating
-        InCallManager.stopRingtone();
+        InCallManager?.stopRingtone();
         // Navigate to Call screen and pass the incoming call data for answering
         navigation.navigate('VoiceCall', {
             bookingId: incomingCall.bookingId,
@@ -69,7 +69,7 @@ const IncomingCallOverlay = () => {
     };
 
     const handleReject = () => {
-        InCallManager.stopRingtone();
+        InCallManager?.stopRingtone();
         import('../services/socketClient').then(({ getSocket }) => {
             const socket = getSocket();
             if (socket?.connected) {

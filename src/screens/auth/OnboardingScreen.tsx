@@ -204,7 +204,7 @@ const OnboardingScreen: React.FC = () => {
                     onPress={handleContinueAsGuest}
                     activeOpacity={0.7}
                 >
-                    <Text style={styles.guestBtnText}>Continue as Guest</Text>
+                    <Text style={styles.guestBtnText}>Continue without Login</Text>
                 </TouchableOpacity>
             </View>
         </View>
@@ -310,7 +310,7 @@ const styles = StyleSheet.create({
         fontSize: TYPOGRAPHY.fontSize.md,
         color: COLORS.textLight,
         fontWeight: TYPOGRAPHY.fontWeight.medium,
-        textDecorationLine: 'underline',
+        // textDecorationLine: 'underline',
     },
 });
 

@@ -54,7 +54,7 @@ export const useCall = ({ bookingId, currentUserId, onIncomingCall }: UseCallOpt
         }
 
         // Stop InCallManager audio session
-        InCallManager.stop();
+        InCallManager?.stop();
 
         setCallDuration(0);
         setIsMuted(false);
@@ -99,8 +99,8 @@ export const useCall = ({ bookingId, currentUserId, onIncomingCall }: UseCallOpt
         }, 1000);
 
         // Start InCallManager: routes audio to earpiece, enables proximity sensor
-        InCallManager.start({ media: 'audio' });
-        InCallManager.setForceSpeakerphoneOn(false);
+        InCallManager?.start({ media: 'audio' });
+        InCallManager?.setForceSpeakerphoneOn(false);
     }, []);
 
     // Initiate a call
@@ -221,7 +221,7 @@ export const useCall = ({ bookingId, currentUserId, onIncomingCall }: UseCallOpt
     const toggleSpeaker = useCallback(() => {
         setIsSpeaker((prev) => {
             const newValue = !prev;
-            InCallManager.setForceSpeakerphoneOn(newValue);
+            InCallManager?.setForceSpeakerphoneOn(newValue);
             return newValue;
         });
     }, []);
