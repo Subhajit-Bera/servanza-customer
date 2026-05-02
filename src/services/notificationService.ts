@@ -1,4 +1,13 @@
-import messaging from '@react-native-firebase/messaging';
+import {
+    getMessaging,
+    requestPermission,
+    AuthorizationStatus,
+    getToken,
+    onMessage,
+    onNotificationOpenedApp,
+    getInitialNotification,
+    onTokenRefresh,
+} from '@react-native-firebase/messaging';
 import * as Notifications from 'expo-notifications';
 import { CONFIG } from '../config/constants';
 import * as SecureStore from 'expo-secure-store';
@@ -93,11 +102,11 @@ const notificationCallbacks: Set<NotificationCallback> = new Set();
  */
 export const requestNotificationPermissions = async (): Promise<boolean> => {
     try {
-        // Request permissions from Firebase
-        const authStatus = await messaging().requestPermission();
+        // Request permissions from Firebase Messaging (modular API)
+        const authStatus = await requestPermission(getMessaging());
         const enabled =
-            authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
-            authStatus === messaging.AuthorizationStatus.PROVISIONAL;
+            authStatus === AuthorizationStatus.AUTHORIZED ||
+            authStatus === AuthorizationStatus.PROVISIONAL;
 
         if (enabled) {
             console.log('[Notifications] Permission granted');
@@ -124,8 +133,8 @@ export const registerForPushNotifications = async (): Promise<string | null> => 
             return null;
         }
 
-        // Get FCM token
-        const fcmToken = await messaging().getToken();
+        // Get FCM token (modular API)
+        const fcmToken = await getToken(getMessaging());
         console.log('[Notifications] FCM Token:', fcmToken?.substring(0, 20) + '...');
 
         // Save token locally
@@ -179,8 +188,10 @@ const registerTokenWithBackend = async (token: string): Promise<void> => {
  * Setup notification listeners
  */
 export const setupNotificationListeners = (): () => void => {
-    // Handle foreground messages
-    const unsubscribeForeground = messaging().onMessage(async (remoteMessage) => {
+    const messaging = getMessaging();
+
+    // Handle foreground messages (modular API)
+    const unsubscribeForeground = onMessage(messaging, async (remoteMessage) => {
         console.log('[Notifications] Foreground message:', remoteMessage);
 
         // Show local notification for foreground messages
@@ -204,17 +215,16 @@ export const setupNotificationListeners = (): () => void => {
         }
     });
 
-    // Handle background/quit messages when app opens from notification
-    messaging().onNotificationOpenedApp((remoteMessage) => {
+    // Handle background/quit messages when app opens from notification (modular API)
+    onNotificationOpenedApp(messaging, (remoteMessage) => {
         console.log('[Notifications] Notification opened app:', remoteMessage);
         if (remoteMessage.data) {
             notifyCallbacks(remoteMessage.data as unknown as PushNotificationData);
         }
     });
 
-    // Check if app was opened from notification when quit
-    messaging()
-        .getInitialNotification()
+    // Check if app was opened from notification when quit (modular API)
+    getInitialNotification(messaging)
         .then((remoteMessage) => {
             if (remoteMessage) {
                 console.log('[Notifications] App opened from quit via notification:', remoteMessage);
@@ -224,8 +234,8 @@ export const setupNotificationListeners = (): () => void => {
             }
         });
 
-    // Handle token refresh
-    const unsubscribeTokenRefresh = messaging().onTokenRefresh(async (token) => {
+    // Handle token refresh (modular API)
+    const unsubscribeTokenRefresh = onTokenRefresh(messaging, async (token) => {
         console.log('[Notifications] Token refreshed');
         await SecureStore.setItemAsync('fcm_token', token);
         await registerTokenWithBackend(token);

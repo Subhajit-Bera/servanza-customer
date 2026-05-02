@@ -14,7 +14,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import auth from '@react-native-firebase/auth';
+import {
+    getAuth,
+    signInWithPhoneNumber,
+    signInWithCredential,
+    PhoneAuthProvider,
+} from '@react-native-firebase/auth';
 import { COLORS, TYPOGRAPHY, SHADOWS, SPACING, BORDER_RADIUS } from '../../theme';
 import { useAppDispatch } from '../../store/hooks';
 import { verifyPhoneAuth } from '../../store/slices/authSlice';
@@ -30,12 +35,15 @@ const OTPScreen: React.FC = () => {
     const route = useRoute<OTPRouteProp>();
     const dispatch = useAppDispatch();
 
-    const { phone, confirmation } = route.params;
+    // verificationId is a plain string — safe for React Navigation serialization
+    const { phone, verificationId: initialVerificationId } = route.params;
 
     const [otp, setOtp] = useState<string[]>(Array(OTP_LENGTH).fill(''));
     const [loading, setLoading] = useState(false);
     const [resendTimer, setResendTimer] = useState(30);
     const [canResend, setCanResend] = useState(false);
+    // Track latest verificationId in state so resend can update it
+    const [verificationId, setVerificationId] = useState(initialVerificationId);
 
     const inputRefs = useRef<(TextInput | null)[]>([]);
 
@@ -107,11 +115,14 @@ const OTPScreen: React.FC = () => {
     const verifyOTP = async (code: string) => {
         setLoading(true);
         try {
-            // Confirm OTP with Firebase
-            await confirmation.confirm(code);
+            // Build a PhoneAuthCredential from the verificationId (plain string) + OTP code.
+            // This replaces the old confirmation.confirm(code) pattern and is the recommended
+            // modular approach — no non-serializable objects are passed through navigation.
+            const credential = PhoneAuthProvider.credential(verificationId, code);
+            const userCredential = await signInWithCredential(getAuth(), credential);
 
             // Get Firebase ID token
-            const idToken = await auth().currentUser?.getIdToken();
+            const idToken = await userCredential.user.getIdToken();
 
             if (!idToken) {
                 throw new Error('Failed to get ID token');
@@ -141,10 +152,12 @@ const OTPScreen: React.FC = () => {
         setResendTimer(30);
 
         try {
-            await auth().signInWithPhoneNumber(phone);
+            // Send a new OTP and store the updated verificationId in state
+            const newConfirmation = await signInWithPhoneNumber(getAuth(), phone);
+            setVerificationId(newConfirmation.verificationId!);
             Alert.alert('Success', 'A new OTP has been sent to your phone');
         } catch (error: any) {
-            const msg = error.code === 'auth/too-many-requests' 
+            const msg = error.code === 'auth/too-many-requests'
                 ? 'Too many requests. Please wait a while before trying again.'
                 : error.message || 'Failed to resend OTP. Please try again.';
             Alert.alert('Error', msg);

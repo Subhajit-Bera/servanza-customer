@@ -16,7 +16,14 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import auth from '@react-native-firebase/auth';
+import {
+    getAuth,
+    createUserWithEmailAndPassword,
+    signInWithEmailAndPassword,
+    signInWithCredential,
+    sendPasswordResetEmail,
+    GoogleAuthProvider,
+} from '@react-native-firebase/auth';
 import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 import { COLORS, TYPOGRAPHY, SHADOWS, SPACING, BORDER_RADIUS } from '../../theme';
 import { APP_INFO } from '../../config/constants';
@@ -75,10 +82,10 @@ const LoginScreen: React.FC = () => {
 
             if (mode === 'SIGNUP') {
                 // Create new account
-                userCredential = await auth().createUserWithEmailAndPassword(email, password);
+                userCredential = await createUserWithEmailAndPassword(getAuth(), email, password);
             } else {
                 // Sign in existing user
-                userCredential = await auth().signInWithEmailAndPassword(email, password);
+                userCredential = await signInWithEmailAndPassword(getAuth(), email, password);
             }
 
             // Get Firebase ID token and send to backend
@@ -136,10 +143,10 @@ const LoginScreen: React.FC = () => {
             }
 
             // Create a Google credential with the token
-            const googleCredential = auth.GoogleAuthProvider.credential(idToken);
+            const googleCredential = GoogleAuthProvider.credential(idToken);
 
             // Sign in with the credential
-            const userCredential = await auth().signInWithCredential(googleCredential);
+            const userCredential = await signInWithCredential(getAuth(), googleCredential);
 
             // Get Firebase ID token and send to backend
             const firebaseIdToken = await userCredential.user.getIdToken();
@@ -178,7 +185,7 @@ const LoginScreen: React.FC = () => {
         }
 
         try {
-            await auth().sendPasswordResetEmail(email);
+            await sendPasswordResetEmail(getAuth(), email);
             Alert.alert(
                 'Reset Email Sent',
                 'Check your email for password reset instructions.'

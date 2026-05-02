@@ -415,58 +415,6 @@ const styles = StyleSheet.create({
         fontSize: TYPOGRAPHY.fontSize.sm,
         color: COLORS.charcoal,
     },
-    serviceTitle: {
-        fontSize: TYPOGRAPHY.fontSize.md,
-        fontWeight: TYPOGRAPHY.fontWeight.semibold,
-        color: COLORS.charcoal,
-        marginBottom: 6,
-        height: 36,
-    },
-    serviceMetaRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 4,
-        marginBottom: 6,
-    },
-    serviceDuration: {
-        fontSize: TYPOGRAPHY.fontSize.xs,
-        color: COLORS.mediumGray,
-    },
-    servicePriceRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-    },
-    servicePrice: {
-        fontSize: TYPOGRAPHY.fontSize.md,
-        fontWeight: TYPOGRAPHY.fontWeight.bold,
-        color: COLORS.charcoal,
-    },
-    addButton: {
-        width: 28,
-        height: 28,
-        borderRadius: 14,
-        backgroundColor: COLORS.primary,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    emptyContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        paddingTop: 80,
-    },
-    emptyTitle: {
-        fontSize: TYPOGRAPHY.fontSize.lg,
-        fontWeight: TYPOGRAPHY.fontWeight.semibold,
-        color: COLORS.charcoal,
-        marginTop: 16,
-    },
-    emptyText: {
-        fontSize: TYPOGRAPHY.fontSize.md,
-        color: COLORS.mediumGray,
-        marginTop: 8,
-    },
 });
 
 export default SearchScreen;

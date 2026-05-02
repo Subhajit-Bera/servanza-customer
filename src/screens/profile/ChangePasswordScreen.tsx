@@ -12,7 +12,12 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import auth from '@react-native-firebase/auth';
+import {
+    getAuth,
+    EmailAuthProvider,
+    reauthenticateWithCredential,
+    updatePassword,
+} from '@react-native-firebase/auth';
 import { COLORS, TYPOGRAPHY, SHADOWS, SPACING, BORDER_RADIUS } from '../../theme';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { ProfileStackParamList } from '../../navigation/MainNavigator';
@@ -46,18 +51,18 @@ const ChangePasswordScreen: React.FC = () => {
 
         setLoading(true);
         try {
-            const user = auth().currentUser;
+            const user = getAuth().currentUser;
             if (!user || !user.email) {
                 Alert.alert('Error', 'User not found. Please log in again.');
                 return;
             }
 
-            // Re-authenticate
-            const credential = auth.EmailAuthProvider.credential(user.email, currentPassword);
-            await user.reauthenticateWithCredential(credential);
+            // Re-authenticate with current password
+            const credential = EmailAuthProvider.credential(user.email, currentPassword);
+            await reauthenticateWithCredential(user, credential);
 
             // Update password
-            await user.updatePassword(newPassword);
+            await updatePassword(user, newPassword);
 
             Alert.alert('Success', 'Password changed successfully.', [
                 { text: 'OK', onPress: () => navigation.goBack() },

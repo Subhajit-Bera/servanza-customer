@@ -15,7 +15,7 @@ export type AuthStackParamList = {
     Onboarding: undefined;
     Login: undefined;
     PhoneEntry: undefined;
-    OTP: { phone: string; confirmation: any };
+    OTP: { phone: string; verificationId: string };
     ProfileSetup: { isNewUser?: boolean };
 };
 

@@ -14,7 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import auth from '@react-native-firebase/auth';
+import { getAuth, signInWithPhoneNumber } from '@react-native-firebase/auth';
 import { COLORS, TYPOGRAPHY, SHADOWS, SPACING, BORDER_RADIUS } from '../../theme';
 import type { AuthStackParamList } from '../../navigation/AuthNavigator';
 
@@ -46,12 +46,14 @@ const PhoneEntryScreen: React.FC = () => {
         try {
             const phoneWithCountryCode = `+91${phone}`;
 
-            // Send OTP via Firebase
-            const confirmation = await auth().signInWithPhoneNumber(phoneWithCountryCode);
+            // Send OTP via Firebase (modular API)
+            const confirmation = await signInWithPhoneNumber(getAuth(), phoneWithCountryCode);
 
+            // Pass only the verificationId (plain string) — fixes React Navigation
+            // non-serializable state warning caused by passing the full confirmation object.
             navigation.navigate('OTP', {
                 phone: phoneWithCountryCode,
-                confirmation,
+                verificationId: confirmation.verificationId!,
             });
         } catch (error: any) {
             console.error('Phone auth error:', error);
