@@ -249,7 +249,7 @@ const BookingFormScreen: React.FC = () => {
                 showsVerticalScrollIndicator={false}
             >
                 {/* Booking Type Toggle */}
-                <View style={styles.toggleContainer}>
+                {/* <View style={styles.toggleContainer}>
                     <TouchableOpacity
                         style={[styles.toggleButton, bookingType === 'SCHEDULED' && styles.activeToggle]}
                         onPress={() => setBookingType('SCHEDULED')}
@@ -269,7 +269,7 @@ const BookingFormScreen: React.FC = () => {
                             </Text>
                         </View>
                     </TouchableOpacity>
-                </View>
+                </View> */}
 
                 {bookingType === 'SCHEDULED' && (
                     <>
