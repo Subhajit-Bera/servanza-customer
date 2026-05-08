@@ -34,6 +34,7 @@ const SearchScreen: React.FC = () => {
     const [recentSearches, setRecentSearches] = useState<string[]>([]);
 
     const TRENDING_SEARCHES = ['AC Service', 'Home Cleaning', 'Electrician', 'Plumber'];
+    const trendingServiceCards = services.slice(0, 4);
 
     useEffect(() => {
         loadRecentSearches();
@@ -140,6 +141,40 @@ const SearchScreen: React.FC = () => {
         </TouchableOpacity>
     );
 
+    const renderHorizontalService = ({ item }: { item: Service }) => (
+        <TouchableOpacity
+            style={[styles.serviceCard, { width: 180 }]}
+            onPress={() => handleServicePress(item.id)}
+            activeOpacity={0.9}
+        >
+            <View style={styles.serviceImageContainer}>
+                {item.imageUrl ? (
+                    <Image source={{ uri: item.imageUrl }} style={styles.serviceImage} />
+                ) : (
+                    <View style={styles.servicePlaceholder}>
+                        <Ionicons name="construct" size={28} color={COLORS.lightGray} />
+                    </View>
+                )}
+            </View>
+            <View style={styles.serviceInfo}>
+                <Text style={styles.serviceTitle} numberOfLines={2}>{item.title}</Text>
+                <View style={styles.serviceMetaRow}>
+                    <Ionicons name="time-outline" size={14} color={COLORS.mediumGray} />
+                    <Text style={styles.serviceDuration}>{item.durationMins} mins</Text>
+                </View>
+                <View style={styles.servicePriceRow}>
+                    <Text style={styles.servicePrice}>₹{item.basePrice}</Text>
+                    <TouchableOpacity
+                        style={styles.addButton}
+                        onPress={() => handleAddToCart(item)}
+                    >
+                        <Ionicons name="add" size={18} color={COLORS.white} />
+                    </TouchableOpacity>
+                </View>
+            </View>
+        </TouchableOpacity>
+    );
+
     return (
         <SafeAreaView style={styles.container} edges={['top']}>
             {/* Search Header */}
@@ -197,7 +232,7 @@ const SearchScreen: React.FC = () => {
                     )}
 
                     <View style={styles.suggestionSection}>
-                        <Text style={styles.suggestionTitle}>Trending Services</Text>
+                        <Text style={styles.suggestionTitle}>Trending Searches</Text>
                         <View style={styles.chipContainer}>
                             {TRENDING_SEARCHES.map((term, index) => (
                                 <TouchableOpacity 
@@ -211,6 +246,20 @@ const SearchScreen: React.FC = () => {
                             ))}
                         </View>
                     </View>
+
+                    {trendingServiceCards.length > 0 && (
+                        <View style={styles.suggestionSection}>
+                            <Text style={styles.suggestionTitle}>Trending Services</Text>
+                            <FlatList
+                                data={trendingServiceCards}
+                                keyExtractor={(item) => `trending-card-${item.id}`}
+                                renderItem={renderHorizontalService}
+                                horizontal
+                                showsHorizontalScrollIndicator={false}
+                                contentContainerStyle={{ gap: SPACING.md, paddingVertical: SPACING.sm }}
+                            />
+                        </View>
+                    )}
                 </View>
             ) : loading ? (
                 <View style={styles.loadingContainer}>

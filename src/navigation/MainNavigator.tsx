@@ -210,9 +210,15 @@ const MainNavigator: React.FC = () => {
             // Short delay to ensure navigators are fully mounted
             const timer = setTimeout(() => {
                 if (pendingAction.screen === 'BookingForm') {
-                    navigation.navigate('CartTab', { screen: 'BookingForm', params: pendingAction.params });
+                    navigation.navigate('Main', { 
+                        screen: 'CartTab', 
+                        params: { screen: 'BookingForm', params: pendingAction.params } 
+                    });
                 } else {
-                    navigation.navigate(pendingAction.screen, pendingAction.params);
+                    navigation.navigate('Main', {
+                        screen: pendingAction.screen,
+                        params: pendingAction.params
+                    });
                 }
                 dispatch(setPendingAction(null));
             }, 150);

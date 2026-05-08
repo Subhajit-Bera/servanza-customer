@@ -16,7 +16,7 @@ import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { COLORS, TYPOGRAPHY, SHADOWS, SPACING, BORDER_RADIUS, formatCurrency } from '../../theme';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
-import { removeFromCart, updateQuantity, clearCart, applyCoupon, removeCoupon, setCouponError, clearCouponError } from '../../store/slices/cartSlice';
+import { removeFromCart, updateQuantity, clearCart, applyCoupon, removeCoupon, setCouponError, clearCouponError, addToCart } from '../../store/slices/cartSlice';
 import { couponApi } from '../../api/client';
 import { useAuthGate } from '../../hooks/useAuthGate';
 import type { CartStackParamList } from '../../navigation/MainNavigator';
@@ -30,6 +30,10 @@ const CartScreen: React.FC = () => {
     const { requireAuth, isGuestUser } = useAuthGate();
 
     const { items, subtotal, tax, total, totalItems, appliedCoupon, couponError } = useAppSelector((state) => state.cart);
+    const { services } = useAppSelector((state) => state.services);
+    
+    // Top 4 services as similar services
+    const similarServices = services.slice(0, 4);
 
     // Checkbox selection: track selected IDs explicitly (all start selected)
     const [selectedIds, setSelectedIds] = useState<Set<string>>(
@@ -273,6 +277,48 @@ const CartScreen: React.FC = () => {
         </View>
     );
 
+    const renderSimilarServices = () => (
+        <View style={styles.similarServicesSection}>
+            <Text style={styles.sectionTitle}>Similar Services</Text>
+            <FlatList
+                data={similarServices}
+                keyExtractor={(item) => `similar-${item.id}`}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ gap: SPACING.md }}
+                renderItem={({ item }) => (
+                    <TouchableOpacity
+                        style={[styles.serviceCard, { width: 160 }]}
+                        onPress={() => (navigation as any).navigate('ServiceDetails', { serviceId: item.id })}
+                        activeOpacity={0.9}
+                    >
+                        <View style={styles.serviceImageContainer}>
+                            {item.imageUrl ? (
+                                <Image source={{ uri: item.imageUrl }} style={styles.serviceImage} />
+                            ) : (
+                                <View style={styles.servicePlaceholder}>
+                                    <Ionicons name="construct" size={24} color={COLORS.lightGray} />
+                                </View>
+                            )}
+                        </View>
+                        <View style={styles.serviceInfo}>
+                            <Text style={styles.serviceTitle} numberOfLines={2}>{item.title}</Text>
+                            <View style={styles.servicePriceRow}>
+                                <Text style={styles.servicePrice}>₹{item.basePrice}</Text>
+                                <TouchableOpacity
+                                    style={styles.addButton}
+                                    onPress={() => dispatch(addToCart({ service: item, quantity: 1 }))}
+                                >
+                                    <Ionicons name="add" size={16} color={COLORS.white} />
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    </TouchableOpacity>
+                )}
+            />
+        </View>
+    );
+
     if (items.length === 0) {
         return (
             <SafeAreaView style={styles.container} edges={['top']}>
@@ -323,10 +369,13 @@ const CartScreen: React.FC = () => {
                 contentContainerStyle={styles.listContent}
                 showsVerticalScrollIndicator={false}
                 keyboardShouldPersistTaps="handled"
+                ListFooterComponent={
+                    <View>
+                        {renderCouponSection()}
+                        {similarServices.length > 0 && renderSimilarServices()}
+                    </View>
+                }
             />
-
-            {/* Coupon section outside FlatList — prevents TextInput remount on re-render */}
-            {renderCouponSection()}
 
 
             {/* Summary Footer */}
@@ -735,6 +784,57 @@ const styles = StyleSheet.create({
         fontSize: TYPOGRAPHY.fontSize.lg,
         fontWeight: TYPOGRAPHY.fontWeight.semibold,
         color: COLORS.white,
+    },
+    similarServicesSection: {
+        marginTop: SPACING.md,
+        marginBottom: SPACING.xl,
+    },
+    serviceCard: {
+        backgroundColor: COLORS.white,
+        borderRadius: BORDER_RADIUS.lg,
+        overflow: 'hidden',
+        ...SHADOWS.light,
+        marginBottom: SPACING.sm,
+    },
+    serviceImageContainer: {
+        height: 100,
+        backgroundColor: COLORS.lightGray,
+    },
+    serviceImage: {
+        width: '100%',
+        height: '100%',
+        resizeMode: 'cover',
+    },
+    servicePlaceholder: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: COLORS.background,
+    },
+    serviceInfo: {
+        padding: SPACING.md,
+    },
+    serviceTitle: {
+        fontSize: TYPOGRAPHY.fontSize.md,
+        fontWeight: TYPOGRAPHY.fontWeight.semibold,
+        color: COLORS.textPrimary,
+        marginBottom: SPACING.xs,
+    },
+    servicePriceRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginTop: SPACING.xs,
+    },
+    servicePrice: {
+        fontSize: TYPOGRAPHY.fontSize.md,
+        fontWeight: TYPOGRAPHY.fontWeight.bold,
+        color: COLORS.primary,
+    },
+    addButton: {
+        backgroundColor: COLORS.primary,
+        padding: 6,
+        borderRadius: BORDER_RADIUS.md,
     },
 });
 
