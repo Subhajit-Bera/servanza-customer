@@ -1,6 +1,7 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Service, CartItem } from '../../types';
+import { servicesApi } from '../../api/client';
 
 const CART_STORAGE_KEY = 'servanza_cart';
 
@@ -204,6 +205,19 @@ const cartSlice = createSlice({
 
             AsyncStorage.removeItem(CART_STORAGE_KEY);
         },
+        // Update cart items with fresh service data (for price refreshes)
+        updateCartItems: (state, action: PayloadAction<CartItem[]>) => {
+            state.items = action.payload;
+            const totals = calculateTotals(action.payload, state.appliedCoupon);
+            state.totalItems = totals.totalItems;
+            state.subtotal = totals.subtotal;
+            state.tax = totals.tax;
+            state.total = totals.total;
+            if (state.appliedCoupon) {
+                state.appliedCoupon.discountAmount = totals.discountAmount;
+            }
+            persistCart(action.payload);
+        },
     },
 });
 
@@ -220,11 +234,50 @@ export const loadCartFromStorage = () => async (dispatch: any) => {
     }
 };
 
+// Thunk to refresh cart prices from server
+export const refreshCartPrices = () => async (dispatch: any, getState: any) => {
+    try {
+        const { items } = getState().cart;
+        if (!items || items.length === 0) return;
+
+        // Fetch fresh service data for all items in cart
+        const updatedItems: CartItem[] = [];
+        let pricesChanged = false;
+
+        for (const item of items) {
+            try {
+                const { data: response } = await servicesApi.getServiceById(item.service.id);
+                const freshService = response.data || response;
+
+                if (freshService && freshService.basePrice !== item.service.basePrice) {
+                    console.log(`Price updated for ${freshService.title}: ${item.service.basePrice} → ${freshService.basePrice}`);
+                    pricesChanged = true;
+                }
+
+                updatedItems.push({
+                    ...item,
+                    service: freshService || item.service,
+                });
+            } catch (err) {
+                // If fetch fails, keep the cached item
+                updatedItems.push(item);
+            }
+        }
+
+        if (pricesChanged) {
+            dispatch(cartSlice.actions.updateCartItems(updatedItems));
+        }
+    } catch (error) {
+        console.error('Failed to refresh cart prices:', error);
+    }
+};
+
 export const {
     loadCart,
     addToCart,
     removeFromCart,
     updateQuantity,
+    updateCartItems,
     applyCoupon,
     removeCoupon,
     setCouponError,

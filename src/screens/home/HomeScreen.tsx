@@ -9,12 +9,14 @@ import {
     RefreshControl,
     Image,
     Dimensions,
+    Linking,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect, CommonActions } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import * as Location from 'expo-location';
+import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, TYPOGRAPHY, SHADOWS, SPACING, BORDER_RADIUS, formatCurrency } from '../../theme';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { fetchServices, fetchCategories } from '../../store/slices/servicesSlice';
@@ -160,8 +162,26 @@ const HomeScreen: React.FC = () => {
         dispatch(addToCart({ service, quantity: 1 }));
     };
 
+    const handlePromoPress = (promo: Promotion) => {
+        if (!promo.ctaLink) return;
+        const link = promo.ctaLink.trim();
+        if (link.startsWith('service:')) {
+            const serviceId = link.replace('service:', '').trim();
+            if (serviceId) navigation.navigate('ServiceDetails', { serviceId });
+        } else if (link.startsWith('category:')) {
+            const categoryId = link.replace('category:', '').trim();
+            if (categoryId) navigation.navigate('Categories', { categoryId });
+        } else if (link.startsWith('http')) {
+            Linking.openURL(link).catch(() => {});
+        }
+    };
+
     const renderPromo = ({ item, index }: { item: Promotion; index: number }) => (
-        <View style={styles.promoCard}>
+        <TouchableOpacity
+            style={styles.promoCard}
+            activeOpacity={0.9}
+            onPress={() => handlePromoPress(item)}
+        >
             <Image
                 source={{ uri: item.imageUrl }}
                 style={styles.promoImage}
@@ -173,7 +193,10 @@ const HomeScreen: React.FC = () => {
                 {item.subtitle ? (
                     <Text style={styles.promoSubtitle} numberOfLines={1}>{item.subtitle}</Text>
                 ) : null}
-                <TouchableOpacity style={styles.promoButton}>
+                <TouchableOpacity
+                    style={styles.promoButton}
+                    onPress={() => handlePromoPress(item)}
+                >
                     <Text style={styles.promoButtonText}>{item.ctaLabel || 'Book Now'}</Text>
                 </TouchableOpacity>
             </View>
@@ -191,7 +214,7 @@ const HomeScreen: React.FC = () => {
                     ))}
                 </View>
             )}
-        </View>
+        </TouchableOpacity>
     );
 
     const renderCategory = ({ item }: { item: Category }) => (
@@ -332,6 +355,50 @@ const HomeScreen: React.FC = () => {
                         />
                     </View>
                 )}
+
+                {/* Instant Service Card */}
+                <View style={styles.instantServiceWrapper}>
+                    <LinearGradient
+                        colors={['#0F766E', '#065F46']}
+                        style={styles.instantCard}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                    >
+                        <View style={styles.instantCardHeader}>
+                            <View style={styles.instantTitleRow}>
+                                <Ionicons name="flash" size={24} color="#FBBF24" />
+                                <Text style={styles.instantTitle}>Instant Service</Text>
+                            </View>
+                            <View style={styles.instantPriceBadge}>
+                                <Text style={styles.instantPriceText}>₹2/min</Text>
+                            </View>
+                        </View>
+                        
+                        <Text style={styles.instantSubtitle}>
+                            Professional help in minutes, not hours.
+                        </Text>
+                        
+                        <View style={styles.instantDurationRow}>
+                            <View style={styles.instantDurationPill}>
+                                <Ionicons name="time-outline" size={16} color={COLORS.white} />
+                                <Text style={styles.instantDurationText}>45 Minutes</Text>
+                            </View>
+                            <View style={styles.instantDurationPill}>
+                                <Ionicons name="time-outline" size={16} color={COLORS.white} />
+                                <Text style={styles.instantDurationText}>1.5 Hours</Text>
+                            </View>
+                        </View>
+                        
+                        <TouchableOpacity 
+                            style={styles.instantBookButton}
+                            onPress={() => navigation.navigate('AllServices')}
+                            activeOpacity={0.9}
+                        >
+                            <Text style={styles.instantBookText}>BOOK NOW</Text>
+                            <Ionicons name="arrow-forward" size={18} color="#065F46" />
+                        </TouchableOpacity>
+                    </LinearGradient>
+                </View>
 
                 {/* Categories */}
                 <View style={styles.section}>
@@ -624,6 +691,80 @@ const styles = StyleSheet.create({
         borderRadius: BORDER_RADIUS.md,
         gap: 2,
         ...SHADOWS.light,
+    },
+    instantServiceWrapper: {
+        paddingHorizontal: SPACING.lg,
+        marginVertical: SPACING.lg,
+    },
+    instantCard: {
+        borderRadius: BORDER_RADIUS.xl,
+        padding: SPACING.lg,
+        ...SHADOWS.green,
+    },
+    instantCardHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: SPACING.sm,
+    },
+    instantTitleRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    instantTitle: {
+        fontSize: TYPOGRAPHY.fontSize.xl,
+        fontWeight: TYPOGRAPHY.fontWeight.bold,
+        color: COLORS.white,
+    },
+    instantPriceBadge: {
+        backgroundColor: 'rgba(255, 255, 255, 0.2)',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: BORDER_RADIUS.md,
+    },
+    instantPriceText: {
+        color: COLORS.white,
+        fontWeight: TYPOGRAPHY.fontWeight.bold,
+        fontSize: TYPOGRAPHY.fontSize.sm,
+    },
+    instantSubtitle: {
+        color: 'rgba(255, 255, 255, 0.9)',
+        fontSize: TYPOGRAPHY.fontSize.md,
+        marginBottom: SPACING.lg,
+    },
+    instantDurationRow: {
+        flexDirection: 'row',
+        gap: SPACING.sm,
+        marginBottom: SPACING.lg,
+    },
+    instantDurationPill: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        backgroundColor: 'rgba(0, 0, 0, 0.2)',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: BORDER_RADIUS.pill,
+    },
+    instantDurationText: {
+        color: COLORS.white,
+        fontSize: TYPOGRAPHY.fontSize.xs,
+        fontWeight: TYPOGRAPHY.fontWeight.medium,
+    },
+    instantBookButton: {
+        backgroundColor: COLORS.white,
+        flexDirection: 'row',
+        justifyContent: 'center',
+        alignItems: 'center',
+        gap: 8,
+        paddingVertical: 14,
+        borderRadius: BORDER_RADIUS.lg,
+    },
+    instantBookText: {
+        color: '#065F46',
+        fontWeight: TYPOGRAPHY.fontWeight.bold,
+        fontSize: TYPOGRAPHY.fontSize.md,
     },
     ratingText: {
         fontSize: TYPOGRAPHY.fontSize.sm,

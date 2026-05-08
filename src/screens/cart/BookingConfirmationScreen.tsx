@@ -53,8 +53,7 @@ const BookingConfirmationScreen: React.FC = () => {
 
     const handleViewBooking = () => {
         navigation.getParent()?.navigate('BookingsTab', {
-            screen: 'BookingDetail',
-            params: { bookingId },
+            screen: 'MyBookings',
         });
     };
 

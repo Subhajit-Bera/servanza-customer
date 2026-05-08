@@ -1,11 +1,12 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
+import { NavigatorScreenParams } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../theme';
 import { useAppSelector, useAppDispatch } from '../store/hooks';
 import { setPendingAction } from '../store/slices/authSlice';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, CommonActions } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // Home Stack
@@ -92,10 +93,10 @@ export type ProfileStackParamList = {
 };
 
 export type MainTabParamList = {
-    HomeTab: undefined;
-    BookingsTab: undefined;
-    CartTab: undefined;
-    ProfileTab: undefined;
+    HomeTab: NavigatorScreenParams<HomeStackParamList> | undefined;
+    BookingsTab: NavigatorScreenParams<BookingsStackParamList> | undefined;
+    CartTab: NavigatorScreenParams<CartStackParamList> | undefined;
+    ProfileTab: NavigatorScreenParams<ProfileStackParamList> | undefined;
 };
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -225,6 +226,7 @@ const MainNavigator: React.FC = () => {
                 headerShown: false,
                 tabBarActiveTintColor: COLORS.primary,
                 tabBarInactiveTintColor: COLORS.mediumGray,
+                tabBarHideOnKeyboard: true,
                 tabBarStyle: {
                     backgroundColor: COLORS.white,
                     borderTopColor: COLORS.lightGray,
@@ -246,6 +248,17 @@ const MainNavigator: React.FC = () => {
                     tabBarLabel: 'Home',
                     tabBarIcon: ({ focused }) => <TabIcon name={focused ? 'home' : 'home-outline'} focused={focused} />,
                 }}
+                listeners={({ navigation }) => ({
+                    tabPress: (e) => {
+                        e.preventDefault();
+                        navigation.dispatch(
+                            CommonActions.reset({
+                                index: 0,
+                                routes: [{ name: 'HomeTab', state: { routes: [{ name: 'Home' }] } }],
+                            })
+                        );
+                    },
+                })}
             />
             <Tab.Screen
                 name="BookingsTab"
@@ -254,6 +267,17 @@ const MainNavigator: React.FC = () => {
                     tabBarLabel: 'Bookings',
                     tabBarIcon: ({ focused }) => <TabIcon name={focused ? 'calendar' : 'calendar-outline'} focused={focused} />,
                 }}
+                listeners={({ navigation }) => ({
+                    tabPress: (e) => {
+                        e.preventDefault();
+                        navigation.dispatch(
+                            CommonActions.reset({
+                                index: 0,
+                                routes: [{ name: 'BookingsTab', state: { routes: [{ name: 'MyBookings' }] } }],
+                            })
+                        );
+                    },
+                })}
             />
             <Tab.Screen
                 name="CartTab"
@@ -270,6 +294,17 @@ const MainNavigator: React.FC = () => {
                         height: 18,
                     },
                 }}
+                listeners={({ navigation }) => ({
+                    tabPress: (e) => {
+                        e.preventDefault();
+                        navigation.dispatch(
+                            CommonActions.reset({
+                                index: 0,
+                                routes: [{ name: 'CartTab', state: { routes: [{ name: 'Cart' }] } }],
+                            })
+                        );
+                    },
+                })}
             />
             <Tab.Screen
                 name="ProfileTab"
@@ -278,6 +313,17 @@ const MainNavigator: React.FC = () => {
                     tabBarLabel: 'Profile',
                     tabBarIcon: ({ focused }) => <TabIcon name={focused ? 'person' : 'person-outline'} focused={focused} />,
                 }}
+                listeners={({ navigation }) => ({
+                    tabPress: (e) => {
+                        e.preventDefault();
+                        navigation.dispatch(
+                            CommonActions.reset({
+                                index: 0,
+                                routes: [{ name: 'ProfileTab', state: { routes: [{ name: 'Profile' }] } }],
+                            })
+                        );
+                    },
+                })}
             />
         </Tab.Navigator>
     );

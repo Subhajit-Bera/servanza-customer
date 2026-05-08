@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback } from 'react';
+import React, { useEffect, useCallback, useState } from 'react';
 import {
     View,
     Text,
@@ -7,6 +7,7 @@ import {
     TouchableOpacity,
     RefreshControl,
     ActivityIndicator,
+    Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,121 +15,150 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import dayjs from 'dayjs';
 import { COLORS, TYPOGRAPHY, SHADOWS, SPACING, BORDER_RADIUS, formatCurrency } from '../../theme';
-import { useAppDispatch, useAppSelector } from '../../store/hooks';
-import { fetchBookings, setStatusFilter } from '../../store/slices/bookingsSlice';
+import { orderApi } from '../../api/client';
 import type { BookingsStackParamList } from '../../navigation/MainNavigator';
-import type { Booking, BookingStatus } from '../../types';
 
 type MyBookingsNavigationProp = StackNavigationProp<BookingsStackParamList, 'MyBookings'>;
 
-const STATUS_FILTERS: { label: string; value: BookingStatus | 'ALL' }[] = [
+const STATUS_FILTERS = [
     { label: 'All', value: 'ALL' },
-    { label: 'Active', value: 'PENDING' },
+    { label: 'Pending', value: 'PENDING' },
     { label: 'In Progress', value: 'IN_PROGRESS' },
     { label: 'Completed', value: 'COMPLETED' },
     { label: 'Cancelled', value: 'CANCELLED' },
 ];
 
-const getStatusConfig = (status: BookingStatus) => {
-    switch (status) {
-        case 'PENDING':
-            return { color: COLORS.warning, label: 'Pending', icon: 'time' };
-        case 'ASSIGNED':
-            return { color: COLORS.info, label: 'Assigned', icon: 'person' };
-        case 'ON_WAY':
-            return { color: COLORS.primary, label: 'On the way', icon: 'navigate' };
-        case 'ARRIVED':
-            return { color: COLORS.primary, label: 'Arrived', icon: 'checkmark-circle' };
-        case 'IN_PROGRESS':
-            return { color: COLORS.darkGreen, label: 'In Progress', icon: 'construct' };
-        case 'COMPLETED':
-            return { color: COLORS.success, label: 'Completed', icon: 'checkmark-done' };
-        case 'CANCELLED':
-            return { color: COLORS.error, label: 'Cancelled', icon: 'close-circle' };
-        default:
-            return { color: COLORS.mediumGray, label: status, icon: 'help' };
-    }
+const getAggregateStatusConfig = (bookings: any[]) => {
+    if (!bookings || bookings.length === 0) return { color: COLORS.mediumGray, label: 'Unknown', bg: COLORS.inputBackground };
+    
+    // Logic for aggregate status
+    const hasInProgress = bookings.some(b => b.status === 'IN_PROGRESS' || b.status === 'ON_WAY' || b.status === 'ARRIVED');
+    const allCompleted = bookings.every(b => b.status === 'COMPLETED');
+    const allCancelled = bookings.every(b => b.status === 'CANCELLED');
+    
+    if (hasInProgress) return { color: COLORS.darkGreen, label: 'In Progress', bg: COLORS.success + '15' };
+    if (allCompleted) return { color: COLORS.success, label: 'Completed', bg: COLORS.success + '15' };
+    if (allCancelled) return { color: COLORS.error, label: 'Cancelled', bg: COLORS.error + '15' };
+    return { color: COLORS.warning, label: 'Pending', bg: COLORS.warning + '15' };
 };
 
 const MyBookingsScreen: React.FC = () => {
     const navigation = useNavigation<MyBookingsNavigationProp>();
-    const dispatch = useAppDispatch();
+    
+    const [orders, setOrders] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
+    const [statusFilter, setStatusFilter] = useState('ALL');
 
-    const { bookings, loading, statusFilter } = useAppSelector((state) => state.bookings);
-    const [refreshing, setRefreshing] = React.useState(false);
-
-    // Reload bookings every time the screen gains focus (tab switch, back nav, etc.)
     useFocusEffect(
         useCallback(() => {
-            loadBookings();
+            loadOrders();
         }, [statusFilter])
     );
 
-    const loadBookings = () => {
-        const params = statusFilter !== 'ALL' ? { status: statusFilter } : {};
-        dispatch(fetchBookings(params));
+    const loadOrders = async () => {
+        try {
+            setLoading(true);
+            const params = statusFilter !== 'ALL' ? { status: statusFilter } : {};
+            const response = await orderApi.getOrders(params);
+            setOrders(response.data.data.orders || []);
+        } catch (error) {
+            console.error('Failed to load orders', error);
+        } finally {
+            setLoading(false);
+        }
     };
 
     const onRefresh = useCallback(async () => {
         setRefreshing(true);
-        await loadBookings();
+        await loadOrders();
         setRefreshing(false);
     }, [statusFilter]);
 
-    const handleBookingPress = (bookingId: string) => {
-        navigation.navigate('BookingDetail', { bookingId });
+    const handleOrderPress = (orderId: string, bookings: any[]) => {
+        if (bookings.length === 1) {
+            navigation.navigate('BookingDetail', { bookingId: bookings[0].id });
+        } else {
+            // Ideally we'd navigate to an OrderDetail screen, but for now we'll just navigate to the first booking detail
+            // OR we can leave it to BookingDetail to fetch Order if we pass orderId. For now, navigate to first booking:
+            navigation.navigate('BookingDetail', { bookingId: bookings[0].id });
+        }
     };
 
-    const renderBooking = ({ item }: { item: Booking }) => {
-        const statusConfig = getStatusConfig(item.status);
+    const renderOrder = ({ item }: { item: any }) => {
+        const bookings = item.bookings || [];
+        const statusConfig = getAggregateStatusConfig(bookings);
         const formattedDate = dayjs(item.scheduledStart || item.createdAt).format('MMM D, YYYY • h:mm A');
+        
+        const firstTwoBookings = bookings.slice(0, 2);
+        const remainingCount = bookings.length > 2 ? bookings.length - 2 : 0;
+        
+        const title = firstTwoBookings.length > 0 
+            ? firstTwoBookings.map((b: any) => b.service.title).join(', ') 
+            : 'Service';
+        
+        const displayTitle = title + (remainingCount > 0 ? ` + ${remainingCount} more` : '');
 
         return (
             <TouchableOpacity
                 style={styles.bookingCard}
-                onPress={() => handleBookingPress(item.id)}
+                onPress={() => handleOrderPress(item.id, bookings)}
                 activeOpacity={0.9}
             >
                 <View style={styles.cardHeader}>
-                    <View style={styles.serviceRow}>
-                        <View style={styles.serviceIcon}>
-                            <Ionicons name="construct" size={20} color={COLORS.primary} />
-                        </View>
-                        <View style={styles.serviceInfo}>
-                            <Text style={styles.serviceName} numberOfLines={1}>
-                                {item.service?.title || 'Service'}
-                            </Text>
-                            <Text style={styles.bookingDate}>
-                                {formattedDate}
-                            </Text>
-                        </View>
-                    </View>
-                    <View style={[styles.statusBadge, { backgroundColor: statusConfig.color + '15' }]}>
+                    <Text style={styles.orderIdText}>{item.orderNumber}</Text>
+                    <View style={[styles.statusBadge, { backgroundColor: statusConfig.bg }]}>
                         <Text style={[styles.statusText, { color: statusConfig.color }]}>
                             {statusConfig.label}
                         </Text>
                     </View>
                 </View>
 
-                <View style={styles.divider} />
+                <View style={styles.cardBody}>
+                    <View style={styles.imageGallery}>
+                        {firstTwoBookings.map((b: any, index: number) => (
+                            <View key={b.id} style={[styles.imageWrapper, { zIndex: 10 - index, marginLeft: index > 0 ? -15 : 0 }]}>
+                                {b.service.imageUrl ? (
+                                    <Image source={{ uri: b.service.imageUrl }} style={styles.serviceImage} />
+                                ) : (
+                                    <View style={styles.serviceImagePlaceholder}>
+                                        <Ionicons name="construct" size={20} color={COLORS.primary} />
+                                    </View>
+                                )}
+                            </View>
+                        ))}
+                        {remainingCount > 0 && (
+                            <View style={[styles.imageWrapper, styles.overflowBadge, { zIndex: 8, marginLeft: -15 }]}>
+                                <Text style={styles.overflowText}>+{remainingCount}</Text>
+                            </View>
+                        )}
+                    </View>
 
-                <View style={styles.cardContent}>
-                    {item.address && (
-                        <View style={styles.detailRow}>
-                            <Ionicons name="location-outline" size={16} color={COLORS.textSecondary} />
-                            <Text style={styles.addressText} numberOfLines={1}>
-                                {item.address.formattedAddress}
-                            </Text>
-                        </View>
-                    )}
+                    <View style={styles.serviceInfo}>
+                        <Text style={styles.serviceName} numberOfLines={2}>
+                            {displayTitle}
+                        </Text>
+                        <Text style={styles.bookingDate}>
+                            {formattedDate}
+                        </Text>
+                    </View>
                 </View>
 
+                <View style={styles.divider} />
+
                 <View style={styles.cardFooter}>
-                    <Text style={styles.price}>{formatCurrency(item.totalAmount)}</Text>
-                    <View style={styles.actionButton}>
-                        <Text style={styles.actionButtonText}>View Details</Text>
-                        <Ionicons name="arrow-forward" size={16} color={COLORS.primary} />
+                    <View>
+                        <Text style={styles.priceLabel}>Total Amount</Text>
+                        <Text style={styles.price}>{formatCurrency(item.totalAmount)}</Text>
                     </View>
+                    <TouchableOpacity 
+                        style={[styles.actionButton, statusConfig.label === 'In Progress' && styles.actionButtonSolid]}
+                        onPress={() => handleOrderPress(item.id, bookings)}
+                    >
+                        <Text style={[styles.actionButtonText, statusConfig.label === 'In Progress' && styles.actionButtonTextSolid]}>
+                            View Details
+                        </Text>
+                    </TouchableOpacity>
                 </View>
             </TouchableOpacity>
         );
@@ -138,9 +168,6 @@ const MyBookingsScreen: React.FC = () => {
         <SafeAreaView style={styles.container} edges={['top']}>
             <View style={styles.header}>
                 <Text style={styles.headerTitle}>My Bookings</Text>
-                {/* <TouchableOpacity style={styles.historyButton}>
-                    <Ionicons name="time-outline" size={24} color={COLORS.textPrimary} />
-                </TouchableOpacity> */}
             </View>
 
             <View style={styles.wrapper}>
@@ -155,7 +182,7 @@ const MyBookingsScreen: React.FC = () => {
                                     styles.filterChip,
                                     statusFilter === item.value && styles.filterChipActive,
                                 ]}
-                                onPress={() => dispatch(setStatusFilter(item.value))}
+                                onPress={() => setStatusFilter(item.value)}
                             >
                                 <Text style={[
                                     styles.filterChipText,
@@ -176,9 +203,9 @@ const MyBookingsScreen: React.FC = () => {
                     </View>
                 ) : (
                     <FlatList
-                        data={bookings}
+                        data={orders}
                         keyExtractor={(item) => item.id}
-                        renderItem={renderBooking}
+                        renderItem={renderOrder}
                         contentContainerStyle={styles.listContent}
                         showsVerticalScrollIndicator={false}
                         refreshControl={
@@ -225,14 +252,6 @@ const styles = StyleSheet.create({
         fontSize: TYPOGRAPHY.fontSize.xxl,
         fontWeight: TYPOGRAPHY.fontWeight.bold,
         color: COLORS.textPrimary,
-    },
-    historyButton: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: COLORS.inputBackground,
-        justifyContent: 'center',
-        alignItems: 'center',
     },
     wrapper: {
         flex: 1,
@@ -288,34 +307,12 @@ const styles = StyleSheet.create({
     cardHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        alignItems: 'flex-start',
+        alignItems: 'center',
         marginBottom: SPACING.md,
     },
-    serviceRow: {
-        flexDirection: 'row',
-        gap: SPACING.md,
-        flex: 1,
-    },
-    serviceIcon: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: COLORS.primaryLight,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    serviceInfo: {
-        flex: 1,
-        justifyContent: 'center',
-    },
-    serviceName: {
-        fontSize: TYPOGRAPHY.fontSize.md,
+    orderIdText: {
+        fontSize: TYPOGRAPHY.fontSize.sm,
         fontWeight: TYPOGRAPHY.fontWeight.bold,
-        color: COLORS.textPrimary,
-        marginBottom: 2,
-    },
-    bookingDate: {
-        fontSize: TYPOGRAPHY.fontSize.xs,
         color: COLORS.textSecondary,
     },
     statusBadge: {
@@ -328,30 +325,76 @@ const styles = StyleSheet.create({
         fontWeight: TYPOGRAPHY.fontWeight.bold,
         textTransform: 'uppercase',
     },
+    cardBody: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: SPACING.sm,
+    },
+    imageGallery: {
+        flexDirection: 'row',
+        marginRight: SPACING.md,
+        alignItems: 'center',
+    },
+    imageWrapper: {
+        width: 48,
+        height: 48,
+        borderRadius: 24,
+        borderWidth: 2,
+        borderColor: COLORS.white,
+        backgroundColor: COLORS.white,
+        overflow: 'hidden',
+    },
+    serviceImage: {
+        width: '100%',
+        height: '100%',
+        resizeMode: 'cover',
+    },
+    serviceImagePlaceholder: {
+        width: '100%',
+        height: '100%',
+        backgroundColor: COLORS.primaryLight,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    overflowBadge: {
+        backgroundColor: COLORS.inputBackground,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    overflowText: {
+        fontSize: TYPOGRAPHY.fontSize.xs,
+        fontWeight: TYPOGRAPHY.fontWeight.bold,
+        color: COLORS.textSecondary,
+    },
+    serviceInfo: {
+        flex: 1,
+        justifyContent: 'center',
+    },
+    serviceName: {
+        fontSize: TYPOGRAPHY.fontSize.md,
+        fontWeight: TYPOGRAPHY.fontWeight.bold,
+        color: COLORS.textPrimary,
+        marginBottom: 4,
+    },
+    bookingDate: {
+        fontSize: TYPOGRAPHY.fontSize.xs,
+        color: COLORS.textSecondary,
+    },
     divider: {
         height: 1,
         backgroundColor: COLORS.divider,
         marginVertical: SPACING.sm,
     },
-    cardContent: {
-        marginVertical: SPACING.sm,
-    },
-    detailRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: SPACING.xs,
-    },
-    addressText: {
-        flex: 1,
-        fontSize: TYPOGRAPHY.fontSize.sm,
-        color: COLORS.textSecondary,
-    },
     cardFooter: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginTop: SPACING.md,
-        paddingTop: SPACING.sm,
+        marginTop: SPACING.sm,
+    },
+    priceLabel: {
+        fontSize: TYPOGRAPHY.fontSize.xs,
+        color: COLORS.textSecondary,
+        marginBottom: 2,
     },
     price: {
         fontSize: TYPOGRAPHY.fontSize.lg,
@@ -359,18 +402,22 @@ const styles = StyleSheet.create({
         color: COLORS.primary,
     },
     actionButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 4,
-        backgroundColor: COLORS.primaryLight,
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: BORDER_RADIUS.lg,
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        borderRadius: BORDER_RADIUS.md,
+        borderWidth: 1,
+        borderColor: COLORS.primary,
+    },
+    actionButtonSolid: {
+        backgroundColor: COLORS.primary,
     },
     actionButtonText: {
-        fontSize: TYPOGRAPHY.fontSize.xs,
+        fontSize: TYPOGRAPHY.fontSize.sm,
         fontWeight: TYPOGRAPHY.fontWeight.bold,
         color: COLORS.primary,
+    },
+    actionButtonTextSolid: {
+        color: COLORS.white,
     },
     emptyContainer: {
         flex: 1,

@@ -179,7 +179,7 @@ export const servicesApi = {
 
 // Booking API
 export const bookingApi = {
-    validateCart: (data: { items: any[]; total: number }) =>
+    validateCart: (data: { items: any[]; total: number; couponCode?: string }) =>
         apiClient.post('/bookings/validate-cart', data),
     createBooking: (data: any) =>
         apiClient.post('/bookings', data),
@@ -266,6 +266,14 @@ export const reviewsApi = {
         apiClient.get('/reviews/my'),
     checkReview: (bookingId: string) =>
         apiClient.get(`/reviews/check/${bookingId}`),
+};
+
+// Orders API
+export const orderApi = {
+    createOrder: (data: any) =>
+        apiClient.post('/orders', data),
+    getOrders: (params?: { status?: string; page?: number; limit?: number }) =>
+        apiClient.get('/orders', { params }),
 };
 
 export default apiClient;

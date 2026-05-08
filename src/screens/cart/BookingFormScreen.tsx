@@ -20,9 +20,10 @@ import { COLORS, TYPOGRAPHY, SHADOWS, SPACING, BORDER_RADIUS, formatCurrency } f
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { fetchAddresses } from '../../store/slices/authSlice';
 import { createBooking } from '../../store/slices/bookingsSlice';
-import { clearCart } from '../../store/slices/cartSlice';
+import { clearCart, refreshCartPrices } from '../../store/slices/cartSlice';
 import { requireLocationPermission } from '../../hooks/useLocation';
-import { bookingApi } from '../../api/client';
+import { bookingApi, orderApi } from '../../api/client';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { CartStackParamList } from '../../navigation/MainNavigator';
 import type { Address } from '../../types';
 
@@ -39,8 +40,8 @@ const BookingFormScreen: React.FC = () => {
     const dispatch = useAppDispatch();
     const isFocused = useIsFocused();
 
-    const { items, total, subtotal, tax } = useAppSelector((state) => state.cart);
-    const { addresses, defaultAddressId } = useAppSelector((state) => state.auth);
+    const { items, total, subtotal, tax, appliedCoupon } = useAppSelector((state) => state.cart);
+    const { addresses, defaultAddressId, user } = useAppSelector((state) => state.auth);
     const { loading } = useAppSelector((state) => state.bookings);
 
     const [bookingType, setBookingType] = useState<BookingType>('SCHEDULED');
@@ -50,6 +51,7 @@ const BookingFormScreen: React.FC = () => {
     const [selectedAddressId, setSelectedAddressId] = useState(defaultAddressId || '');
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [specialInstructions, setSpecialInstructions] = useState('');
+    const [contactPhone, setContactPhone] = useState(user?.phone || '');
 
     // Generate next 7 days for calendar strip
     const dates = Array.from({ length: 7 }, (_, i) => dayjs().add(i, 'day'));
@@ -107,12 +109,27 @@ const BookingFormScreen: React.FC = () => {
         }
     }, [selectedDate]);
 
-    // Fetch addresses on mount and when screen comes back into focus
+    // Fetch addresses and refresh cart prices on mount
     useEffect(() => {
         if (isFocused) {
             dispatch(fetchAddresses());
+            dispatch(refreshCartPrices());
+            loadSavedPhone();
         }
     }, [isFocused]);
+
+    const loadSavedPhone = async () => {
+        try {
+            const savedPhone = await AsyncStorage.getItem('last_booking_phone');
+            if (savedPhone) {
+                setContactPhone(savedPhone);
+            } else if (user?.phone) {
+                setContactPhone(user.phone);
+            }
+        } catch (error) {
+            console.log('Error loading saved phone:', error);
+        }
+    };
 
     useEffect(() => {
         if (addresses.length > 0 && !selectedAddressId) {
@@ -166,6 +183,12 @@ const BookingFormScreen: React.FC = () => {
             return;
         }
 
+        const trimmedPhone = contactPhone.trim();
+        if (!trimmedPhone || trimmedPhone.length < 10) {
+            Alert.alert('Phone Number Required', 'Please provide a valid contact phone number.');
+            return;
+        }
+
         // Verify location permission for booking
         requireLocationPermission(
             async () => {
@@ -175,15 +198,17 @@ const BookingFormScreen: React.FC = () => {
                         serviceId: item.service.id,
                         quantity: item.quantity,
                     }));
-                    await bookingApi.validateCart({ items: mappedItems, total });
+                    await bookingApi.validateCart({
+                        items: mappedItems,
+                        total,
+                        couponCode: appliedCoupon?.code || undefined,
+                    });
 
-                    // For simplicity, book the first service in cart (assuming single service booking flow for now)
-                    // In a real app, we might create an order with multiple items
+                    // Create an order containing all cart items
                     const firstItem = items[0];
                     const scheduleInfo = bookingType === 'IMMEDIATE'
                         ? {
                             scheduledStart: new Date().toISOString(),
-                            scheduledEnd: dayjs().add(firstItem.service.durationMins, 'minute').toISOString(),
                             isImmediate: true,
                         }
                         : {
@@ -191,31 +216,37 @@ const BookingFormScreen: React.FC = () => {
                             isImmediate: false,
                         };
 
-                    const bookingData = {
-                        serviceId: firstItem.service.id,
+                    const orderData = {
+                        items: mappedItems,
                         addressId: selectedAddressId,
                         ...scheduleInfo,
                         paymentMethod: 'PREPAID',
-                        price: total, // Use total instead of subtotal to include tax/discounts
                         notes: specialInstructions,
+                        contactPhone: trimmedPhone,
+                        couponCode: appliedCoupon?.code || undefined,
                     };
 
-                    const resultAction = await dispatch(createBooking(bookingData));
-
-                    if (createBooking.fulfilled.match(resultAction)) {
+                    const response = await orderApi.createOrder(orderData);
+                    
+                    if (response.data && response.data.success) {
+                        // Save phone for next time
+                        await AsyncStorage.setItem('last_booking_phone', trimmedPhone);
+                        
                         dispatch(clearCart());
+                        
                         // Build display info for confirmation screen
                         const selectedAddr = addresses.find(a => a.id === selectedAddressId);
                         const scheduledTimeDisplay = bookingType === 'IMMEDIATE'
                             ? 'Now (Immediate)'
                             : dayjs(selectedDate).format('DD MMM YYYY') + ` at ${String(selectedHour).padStart(2, '0')}:${String(selectedMinute).padStart(2, '0')}`;
+                        
                         navigation.navigate('BookingConfirmation', {
-                            bookingId: resultAction.payload.id,
+                            bookingId: response.data.data.orderNumber, // Pass orderNumber as bookingId for display
                             scheduledTime: scheduledTimeDisplay,
                             address: selectedAddr?.formattedAddress || selectedAddr?.streetAddress || '',
                         });
                     } else {
-                        Alert.alert('Booking Failed', 'Unable to create booking. Please try again.');
+                        Alert.alert('Booking Failed', 'Unable to create order. Please try again.');
                     }
                 } catch (error: any) {
                     console.error('Booking error:', error);
@@ -418,6 +449,26 @@ const BookingFormScreen: React.FC = () => {
                             })}
                         </ScrollView>
                     )}
+                </View>
+
+                {/* Contact Phone */}
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>Contact Phone</Text>
+                    <View style={styles.phoneInputRow}>
+                        <View style={styles.phonePrefix}>
+                            <Text style={styles.phonePrefixText}>+91</Text>
+                        </View>
+                        <TextInput
+                            style={styles.phoneInput}
+                            value={contactPhone}
+                            onChangeText={setContactPhone}
+                            placeholder="Phone number for this booking"
+                            placeholderTextColor={COLORS.textLight}
+                            keyboardType="phone-pad"
+                            maxLength={10}
+                        />
+                    </View>
+                    <Text style={styles.phoneHint}>The service provider will use this number to contact you</Text>
                 </View>
 
                 {/* Special Instructions */}
@@ -788,6 +839,40 @@ const styles = StyleSheet.create({
     },
     selectedAddressSubText: {
         color: 'rgba(255,255,255,0.9)',
+    },
+    phoneInputRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: COLORS.white,
+        borderRadius: BORDER_RADIUS.lg,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        overflow: 'hidden',
+    },
+    phonePrefix: {
+        paddingHorizontal: SPACING.md,
+        paddingVertical: 14,
+        backgroundColor: COLORS.background,
+        borderRightWidth: 1,
+        borderRightColor: COLORS.border,
+    },
+    phonePrefixText: {
+        fontSize: TYPOGRAPHY.fontSize.md,
+        fontWeight: TYPOGRAPHY.fontWeight.semibold,
+        color: COLORS.textPrimary,
+    },
+    phoneInput: {
+        flex: 1,
+        paddingHorizontal: SPACING.md,
+        paddingVertical: 14,
+        fontSize: TYPOGRAPHY.fontSize.md,
+        color: COLORS.textPrimary,
+    },
+    phoneHint: {
+        fontSize: TYPOGRAPHY.fontSize.xs,
+        color: COLORS.textLight,
+        marginTop: 6,
+        marginLeft: 4,
     },
     inputArea: {
         backgroundColor: COLORS.white,
