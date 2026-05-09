@@ -154,6 +154,8 @@ export interface Booking {
     address?: Address;
     buddy?: BuddyInfo;
     review?: Review;
+    assignments?: any[];
+    metadata?: any;
 }
 
 export interface BuddyInfo {

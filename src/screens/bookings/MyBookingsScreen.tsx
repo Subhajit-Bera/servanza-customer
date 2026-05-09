@@ -8,6 +8,7 @@ import {
     RefreshControl,
     ActivityIndicator,
     Image,
+    Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -90,14 +91,20 @@ const MyBookingsScreen: React.FC = () => {
         const statusConfig = getAggregateStatusConfig(bookings);
         const formattedDate = dayjs(item.scheduledStart || item.createdAt).format('MMM D, YYYY • h:mm A');
         
-        const firstTwoBookings = bookings.slice(0, 2);
-        const remainingCount = bookings.length > 2 ? bookings.length - 2 : 0;
+        const metadataItems = bookings[0]?.metadata?.items || [];
+        const useMetadata = metadataItems.length > 0;
         
-        const title = firstTwoBookings.length > 0 
-            ? firstTwoBookings.map((b: any) => b.service.title).join(', ') 
+        const firstTwoItems = useMetadata ? metadataItems.slice(0, 2) : bookings.slice(0, 2);
+        const remainingCount = (useMetadata ? metadataItems.length : bookings.length) - 2;
+        const actualRemainingCount = remainingCount > 0 ? remainingCount : 0;
+        
+        const title = firstTwoItems.length > 0 
+            ? firstTwoItems.map((b: any) => b.title || b.service?.title).join(', ') 
             : 'Service';
         
-        const displayTitle = title + (remainingCount > 0 ? ` + ${remainingCount} more` : '');
+        const displayTitle = title + (actualRemainingCount > 0 ? ` + ${actualRemainingCount} more` : '');
+
+        const buddy = bookings[0]?.assignments?.[0]?.buddy;
 
         return (
             <TouchableOpacity
@@ -116,20 +123,23 @@ const MyBookingsScreen: React.FC = () => {
 
                 <View style={styles.cardBody}>
                     <View style={styles.imageGallery}>
-                        {firstTwoBookings.map((b: any, index: number) => (
-                            <View key={b.id} style={[styles.imageWrapper, { zIndex: 10 - index, marginLeft: index > 0 ? -15 : 0 }]}>
-                                {b.service.imageUrl ? (
-                                    <Image source={{ uri: b.service.imageUrl }} style={styles.serviceImage} />
-                                ) : (
-                                    <View style={styles.serviceImagePlaceholder}>
-                                        <Ionicons name="construct" size={20} color={COLORS.primary} />
-                                    </View>
-                                )}
-                            </View>
-                        ))}
-                        {remainingCount > 0 && (
+                        {firstTwoItems.map((b: any, index: number) => {
+                            const imageUrl = b.imageUrl || b.service?.imageUrl;
+                            return (
+                                <View key={b.serviceId || b.id} style={[styles.imageWrapper, { zIndex: 10 - index, marginLeft: index > 0 ? -15 : 0 }]}>
+                                    {imageUrl ? (
+                                        <Image source={{ uri: imageUrl }} style={styles.serviceImage} />
+                                    ) : (
+                                        <View style={styles.serviceImagePlaceholder}>
+                                            <Ionicons name="construct" size={20} color={COLORS.primary} />
+                                        </View>
+                                    )}
+                                </View>
+                            );
+                        })}
+                        {actualRemainingCount > 0 && (
                             <View style={[styles.imageWrapper, styles.overflowBadge, { zIndex: 8, marginLeft: -15 }]}>
-                                <Text style={styles.overflowText}>+{remainingCount}</Text>
+                                <Text style={styles.overflowText}>+{actualRemainingCount}</Text>
                             </View>
                         )}
                     </View>
@@ -145,6 +155,30 @@ const MyBookingsScreen: React.FC = () => {
                 </View>
 
                 <View style={styles.divider} />
+
+                {buddy && (
+                    <View style={styles.buddyRow}>
+                        <View style={styles.buddyAvatar}>
+                            {buddy.user?.profileImage ? (
+                                <Image source={{ uri: buddy.user.profileImage }} style={styles.buddyImage} />
+                            ) : (
+                                <Ionicons name="person" size={20} color={COLORS.primary} />
+                            )}
+                        </View>
+                        <View style={styles.buddyInfo}>
+                            <Text style={styles.buddyName}>{buddy.user?.name || buddy.name}</Text>
+                            <Text style={styles.buddyStatus}>Assigned Buddy</Text>
+                        </View>
+                        <TouchableOpacity
+                            style={styles.callButton}
+                            onPress={() => navigation.navigate('VoiceCall', { bookingId: bookings[0]?.id, buddyName: buddy.user?.name || buddy.name })}
+                        >
+                            <Ionicons name="call" size={18} color={COLORS.white} />
+                        </TouchableOpacity>
+                    </View>
+                )}
+
+                {buddy && <View style={styles.divider} />}
 
                 <View style={styles.cardFooter}>
                     <View>
@@ -418,6 +452,46 @@ const styles = StyleSheet.create({
     },
     actionButtonTextSolid: {
         color: COLORS.white,
+    },
+    buddyRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: SPACING.sm,
+    },
+    buddyAvatar: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: COLORS.inputBackground,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: SPACING.md,
+        overflow: 'hidden',
+    },
+    buddyImage: {
+        width: '100%',
+        height: '100%',
+    },
+    buddyInfo: {
+        flex: 1,
+    },
+    buddyName: {
+        fontSize: TYPOGRAPHY.fontSize.md,
+        fontWeight: TYPOGRAPHY.fontWeight.semibold,
+        color: COLORS.textPrimary,
+    },
+    buddyStatus: {
+        fontSize: TYPOGRAPHY.fontSize.xs,
+        color: COLORS.primary,
+        fontWeight: TYPOGRAPHY.fontWeight.medium,
+    },
+    callButton: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: COLORS.success,
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     emptyContainer: {
         flex: 1,

@@ -7,6 +7,8 @@ import {
     TouchableOpacity,
     ActivityIndicator,
     Alert,
+    Linking,
+    Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -161,8 +163,20 @@ const BookingDetailScreen: React.FC = () => {
 
     const statusConfig = getStatusConfig(booking.status);
     const canTrack = ['ON_WAY', 'ARRIVED'].includes(booking.status);
-    const canCancel = ['PENDING', 'ASSIGNED'].includes(booking.status);
+    
+    let canCancel = false;
+    if (!['IN_PROGRESS', 'COMPLETED', 'CANCELLED'].includes(booking.status)) {
+        if (booking.isImmediate) {
+            canCancel = dayjs().diff(dayjs(booking.createdAt), 'minute') <= 5;
+        } else {
+            canCancel = dayjs(booking.scheduledStart).diff(dayjs(), 'minute') >= 30;
+        }
+    }
+    
     const canReview = booking.status === 'COMPLETED' && !booking.review;
+    const buddy = booking.buddy || booking.assignments?.[0]?.buddy;
+    const metadataItems = booking.metadata?.items || [];
+    const showPayNow = booking.paymentStatus !== 'PAID' && booking.status !== 'CANCELLED';
 
     return (
         <SafeAreaView style={styles.container} edges={['top']}>
@@ -219,7 +233,13 @@ const BookingDetailScreen: React.FC = () => {
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Service</Text>
                     <View style={styles.infoCard}>
-                        <Text style={styles.serviceName}>{booking.service?.title || 'Service'}</Text>
+                        {metadataItems.length > 0 ? (
+                            metadataItems.map((item: any, idx: number) => (
+                                <Text key={idx} style={styles.serviceName}>{item.quantity}x {item.title || 'Service'}</Text>
+                            ))
+                        ) : (
+                            <Text style={styles.serviceName}>{booking.service?.title || 'Service'}</Text>
+                        )}
                         <View style={styles.serviceDetails}>
                             <View style={styles.detailRow}>
                                 <Ionicons name="calendar-outline" size={16} color={COLORS.mediumGray} />
@@ -254,26 +274,36 @@ const BookingDetailScreen: React.FC = () => {
                 )}
 
                 {/* Buddy Info */}
-                {booking.buddy && (
+                {buddy && (
                     <View style={styles.section}>
                         <Text style={styles.sectionTitle}>Your Buddy</Text>
                         <View style={styles.infoCard}>
                             <View style={styles.buddyRow}>
                                 <View style={styles.buddyAvatar}>
-                                    <Ionicons name="person" size={24} color={COLORS.primary} />
+                                    {buddy.user?.profileImage ? (
+                                        <Image source={{ uri: buddy.user.profileImage }} style={{ width: '100%', height: '100%', borderRadius: 25 }} />
+                                    ) : (
+                                        <Ionicons name="person" size={24} color={COLORS.primary} />
+                                    )}
                                 </View>
                                 <View style={styles.buddyInfo}>
-                                    <Text style={styles.buddyName}>{booking.buddy.name}</Text>
+                                    <Text style={styles.buddyName}>{buddy.user?.name || buddy.name}</Text>
                                     <View style={styles.ratingRow}>
                                         <Ionicons name="star" size={14} color={COLORS.warning} />
                                         <Text style={styles.ratingText}>
-                                            {booking.buddy.avgRating?.toFixed(1) || 'New'}
+                                            {buddy.avgRating?.toFixed(1) || buddy.rating?.toFixed(1) || 'New'}
                                         </Text>
                                     </View>
                                     <View style={styles.actionButtonsRow}>
                                         <TouchableOpacity
                                             style={styles.chatIconButton}
-                                            onPress={() => navigation.navigate('Chat', { bookingId, buddyName: booking.buddy!.name })}
+                                            onPress={() => navigation.navigate('VoiceCall', { bookingId, buddyName: buddy.user?.name || buddy.name })}
+                                        >
+                                            <Ionicons name="call" size={20} color={COLORS.primary} />
+                                        </TouchableOpacity>
+                                        <TouchableOpacity
+                                            style={styles.chatIconButton}
+                                            onPress={() => navigation.navigate('Chat', { bookingId, buddyName: buddy.user?.name || buddy.name })}
                                         >
                                             <Ionicons name="chatbubbles" size={20} color={COLORS.primary} />
                                         </TouchableOpacity>
@@ -298,14 +328,28 @@ const BookingDetailScreen: React.FC = () => {
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Payment Summary</Text>
                     <View style={styles.infoCard}>
-                        <View style={styles.summaryRow}>
-                            <Text style={styles.summaryLabel}>Service Charge</Text>
-                            <Text style={styles.summaryValue}>₹{booking.price}</Text>
-                        </View>
+                        {metadataItems.length > 0 && metadataItems.map((item: any, idx: number) => (
+                            <View key={`price-${idx}`} style={styles.summaryRow}>
+                                <Text style={styles.summaryLabel}>{item.quantity}x {item.title}</Text>
+                                <Text style={styles.summaryValue}>₹{item.price * item.quantity}</Text>
+                            </View>
+                        ))}
+                        {metadataItems.length === 0 && (
+                            <View style={styles.summaryRow}>
+                                <Text style={styles.summaryLabel}>Service Charge</Text>
+                                <Text style={styles.summaryValue}>₹{booking.price}</Text>
+                            </View>
+                        )}
                         <View style={styles.summaryRow}>
                             <Text style={styles.summaryLabel}>Tax (GST)</Text>
                             <Text style={styles.summaryValue}>₹{booking.taxAmount}</Text>
                         </View>
+                        {booking.discountAmount > 0 && (
+                            <View style={styles.summaryRow}>
+                                <Text style={styles.summaryLabel}>Discount</Text>
+                                <Text style={[styles.summaryValue, { color: COLORS.success }]}>-₹{booking.discountAmount}</Text>
+                            </View>
+                        )}
                         <View style={styles.divider} />
                         <View style={styles.summaryRow}>
                             <Text style={styles.totalLabel}>Total</Text>
@@ -338,14 +382,23 @@ const BookingDetailScreen: React.FC = () => {
             </ScrollView>
 
             {/* Action Buttons */}
-            {(canCancel || canReview) && (
+            {(canCancel || canReview || showPayNow) && (
                 <View style={styles.bottomBar}>
                     {canCancel && (
                         <TouchableOpacity
                             style={styles.cancelButton}
                             onPress={handleCancel}
                         >
-                            <Text style={styles.cancelButtonText}>Cancel Booking</Text>
+                            <Text style={styles.cancelButtonText}>Cancel</Text>
+                        </TouchableOpacity>
+                    )}
+                    {showPayNow && (
+                        <TouchableOpacity
+                            style={styles.payButton}
+                            onPress={() => (navigation as any).navigate('CartTab', { screen: 'Payment', params: { bookingId: booking.id } })}
+                        >
+                            <Ionicons name="card" size={20} color={COLORS.white} />
+                            <Text style={styles.payButtonText}>Pay Now</Text>
                         </TouchableOpacity>
                     )}
                     {canReview && (
@@ -757,6 +810,21 @@ const styles = StyleSheet.create({
         fontSize: TYPOGRAPHY.fontSize.md,
         fontWeight: TYPOGRAPHY.fontWeight.semibold,
         color: COLORS.coral,
+    },
+    payButton: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: COLORS.success,
+        paddingVertical: 14,
+        borderRadius: BORDER_RADIUS.lg,
+        gap: 8,
+    },
+    payButtonText: {
+        fontSize: TYPOGRAPHY.fontSize.md,
+        fontWeight: TYPOGRAPHY.fontWeight.semibold,
+        color: COLORS.white,
     },
     reviewButton: {
         flex: 1,

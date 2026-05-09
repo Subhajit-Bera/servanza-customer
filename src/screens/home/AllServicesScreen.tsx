@@ -558,6 +558,7 @@ const styles = StyleSheet.create({
         width: '50%',
         paddingHorizontal: SPACING.sm,
         marginBottom: SPACING.md,
+        display: 'flex',
     },
     serviceCard: {
         backgroundColor: COLORS.white,
@@ -565,6 +566,7 @@ const styles = StyleSheet.create({
         overflow: 'hidden',
         borderWidth: 1,
         borderColor: COLORS.border,
+        flex: 1,
     },
     serviceImageContainer: {
         height: 140,
@@ -602,6 +604,8 @@ const styles = StyleSheet.create({
     },
     serviceInfo: {
         padding: SPACING.md,
+        flex: 1,
+        justifyContent: 'space-between',
     },
     serviceTitle: {
         fontSize: TYPOGRAPHY.fontSize.md,
