@@ -91,7 +91,20 @@ const MyBookingsScreen: React.FC = () => {
         const statusConfig = getAggregateStatusConfig(bookings);
         const formattedDate = dayjs(item.scheduledStart || item.createdAt).format('MMM D, YYYY • h:mm A');
         
-        const items = bookings[0]?.metadata?.items || [];
+        let items = [];
+        try {
+            const rawMetadata = bookings[0]?.metadata;
+            if (rawMetadata) {
+                if (typeof rawMetadata === 'string') {
+                    items = JSON.parse(rawMetadata).items || [];
+                } else {
+                    items = rawMetadata.items || [];
+                }
+            }
+        } catch (e) {
+            console.warn("Failed to parse metadata", e);
+        }
+        
         const hasMultiple = items.length > 1;
         
         const displayTitle = hasMultiple 

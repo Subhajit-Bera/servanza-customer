@@ -175,7 +175,21 @@ const BookingDetailScreen: React.FC = () => {
     
     const canReview = booking.status === 'COMPLETED' && !booking.review;
     const buddy = booking.buddy || booking.assignments?.[0]?.buddy;
-    const metadataItems = booking.metadata?.items || [];
+    
+    let metadataItems = [];
+    try {
+        const rawMetadata = booking?.metadata;
+        if (rawMetadata) {
+            if (typeof rawMetadata === 'string') {
+                metadataItems = JSON.parse(rawMetadata).items || [];
+            } else {
+                metadataItems = rawMetadata.items || [];
+            }
+        }
+    } catch (e) {
+        console.warn("Failed to parse metadata", e);
+    }
+
     const showPayNow = booking.paymentStatus !== 'PAID' && booking.status !== 'CANCELLED';
 
     return (
