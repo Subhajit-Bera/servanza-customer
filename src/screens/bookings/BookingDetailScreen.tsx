@@ -231,30 +231,44 @@ const BookingDetailScreen: React.FC = () => {
 
                 {/* Service Info */}
                 <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Service</Text>
-                    <View style={styles.infoCard}>
-                        {metadataItems.length > 0 ? (
-                            metadataItems.map((item: any, idx: number) => (
-                                <Text key={idx} style={styles.serviceName}>{item.quantity}x {item.title || 'Service'}</Text>
-                            ))
-                        ) : (
-                            <Text style={styles.serviceName}>{booking.service?.title || 'Service'}</Text>
-                        )}
-                        <View style={styles.serviceDetails}>
-                            <View style={styles.detailRow}>
-                                <Ionicons name="calendar-outline" size={16} color={COLORS.mediumGray} />
-                                <Text style={styles.detailText}>
-                                    {dayjs(booking.scheduledStart).format('ddd, MMM D, YYYY')}
+                    <Text style={styles.sectionTitle}>Services Requested</Text>
+                    {metadataItems.length > 0 ? (
+                        metadataItems.map((item: any, index: number) => (
+                            <View key={index} style={styles.serviceListItem}>
+                                <Image source={{ uri: item.imageUrl }} style={styles.serviceListImage} />
+                                <View style={styles.serviceListDetails}>
+                                    <Text style={styles.serviceItemName}>{item.title}</Text>
+                                    <Text style={styles.serviceItemQty}>Qty: {item.quantity}</Text>
+                                </View>
+                                <Text style={styles.serviceItemPrice}>
+                                    ₹{item.price * item.quantity}
                                 </Text>
                             </View>
-                            <View style={styles.detailRow}>
-                                <Ionicons name="time-outline" size={16} color={COLORS.mediumGray} />
-                                <Text style={styles.detailText}>
-                                    {dayjs(booking.scheduledStart).format('h:mm A')}
-                                </Text>
+                        ))
+                    ) : (
+                        <View style={styles.serviceListItem}>
+                            {booking.service?.imageUrl ? (
+                                <Image source={{ uri: booking.service.imageUrl }} style={styles.serviceListImage} />
+                            ) : (
+                                <View style={[styles.serviceListImage, { backgroundColor: COLORS.primaryLight, justifyContent: 'center', alignItems: 'center' }]}>
+                                    <Ionicons name="construct" size={24} color={COLORS.primary} />
+                                </View>
+                            )}
+                            <View style={styles.serviceListDetails}>
+                                <Text style={styles.serviceItemName}>{booking.service?.title || 'Service'}</Text>
+                                <Text style={styles.serviceItemQty}>Qty: 1</Text>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
+                                    <Ionicons name="calendar-outline" size={14} color={COLORS.mediumGray} />
+                                    <Text style={[styles.serviceItemQty, { marginTop: 0, marginLeft: 4 }]}>
+                                        {dayjs(booking.scheduledStart).format('DD MMM YYYY, h:mm A')}
+                                    </Text>
+                                </View>
                             </View>
+                            <Text style={styles.serviceItemPrice}>
+                                ₹{booking.price}
+                            </Text>
                         </View>
-                    </View>
+                    )}
                 </View>
 
                 {/* Address */}
@@ -328,45 +342,47 @@ const BookingDetailScreen: React.FC = () => {
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Payment Summary</Text>
                     <View style={styles.infoCard}>
-                        {metadataItems.length > 0 && metadataItems.map((item: any, idx: number) => (
-                            <View key={`price-${idx}`} style={styles.summaryRow}>
-                                <Text style={styles.summaryLabel}>{item.quantity}x {item.title}</Text>
-                                <Text style={styles.summaryValue}>₹{item.price * item.quantity}</Text>
-                            </View>
-                        ))}
-                        {metadataItems.length === 0 && (
-                            <View style={styles.summaryRow}>
-                                <Text style={styles.summaryLabel}>Service Charge</Text>
-                                <Text style={styles.summaryValue}>₹{booking.price}</Text>
+                        {/* Individual Service Breakdown */}
+                        {metadataItems.length > 0 ? (
+                            metadataItems.map((item: any, index: number) => (
+                                <View key={`price-${index}`} style={styles.priceRow}>
+                                    <Text style={styles.priceLabel}>
+                                        {item.title} <Text style={styles.qtyText}>(x{item.quantity})</Text>
+                                    </Text>
+                                    <Text style={styles.priceValue}>₹{item.price * item.quantity}</Text>
+                                </View>
+                            ))
+                        ) : (
+                            <View style={styles.priceRow}>
+                                <Text style={styles.priceLabel}>
+                                    {booking.service?.title} <Text style={styles.qtyText}>(x1)</Text>
+                                </Text>
+                                <Text style={styles.priceValue}>₹{booking.price}</Text>
                             </View>
                         )}
-                        <View style={styles.summaryRow}>
-                            <Text style={styles.summaryLabel}>Tax (GST)</Text>
-                            <Text style={styles.summaryValue}>₹{booking.taxAmount}</Text>
+
+                        <View style={styles.priceRow}>
+                            <Text style={styles.priceLabel}>Tax (GST)</Text>
+                            <Text style={styles.priceValue}>₹{booking.taxAmount}</Text>
                         </View>
+
                         {booking.discountAmount > 0 && (
-                            <View style={styles.summaryRow}>
-                                <Text style={styles.summaryLabel}>Discount</Text>
-                                <Text style={[styles.summaryValue, { color: COLORS.success }]}>-₹{booking.discountAmount}</Text>
+                            <View style={styles.priceRow}>
+                                <Text style={styles.priceLabel}>Discount</Text>
+                                <Text style={[styles.priceValue, { color: COLORS.success }]}>-₹{booking.discountAmount}</Text>
                             </View>
                         )}
+
                         <View style={styles.divider} />
-                        <View style={styles.summaryRow}>
-                            <Text style={styles.totalLabel}>Total</Text>
+
+                        <View style={styles.totalRow}>
+                            <Text style={styles.totalLabel}>Total Amount</Text>
                             <Text style={styles.totalValue}>₹{booking.totalAmount}</Text>
                         </View>
-                        <View style={[styles.paymentStatus, {
-                            backgroundColor: booking.paymentStatus === 'PAID' ? COLORS.success + '20' : COLORS.warning + '20'
-                        }]}>
-                            <Ionicons
-                                name={booking.paymentStatus === 'PAID' ? 'checkmark-circle' : 'time'}
-                                size={16}
-                                color={booking.paymentStatus === 'PAID' ? COLORS.success : COLORS.warning}
-                            />
-                            <Text style={[styles.paymentStatusText, {
-                                color: booking.paymentStatus === 'PAID' ? COLORS.success : COLORS.warning
-                            }]}>
-                                {booking.paymentStatus === 'PAID' ? 'Payment Completed' : 'Payment Pending'}
+
+                        <View style={styles.paymentStatusBadge}>
+                            <Text style={styles.paymentStatusText}>
+                                {booking.paymentStatus === 'PAID' ? 'Paid via Online' : 'Pending Payment'}
                             </Text>
                         </View>
                     </View>
@@ -731,17 +747,53 @@ const styles = StyleSheet.create({
         fontWeight: TYPOGRAPHY.fontWeight.semibold,
         color: COLORS.white,
     },
-    summaryRow: {
+    serviceListItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 12,
+        padding: 10,
+        backgroundColor: COLORS.white,
+        borderRadius: BORDER_RADIUS.md,
+    },
+    serviceListImage: {
+        width: 50,
+        height: 50,
+        borderRadius: BORDER_RADIUS.sm,
+        marginRight: 12,
+    },
+    serviceListDetails: {
+        flex: 1,
+    },
+    serviceItemName: {
+        fontSize: TYPOGRAPHY.fontSize.md,
+        fontWeight: TYPOGRAPHY.fontWeight.semibold,
+        color: COLORS.charcoal,
+    },
+    serviceItemQty: {
+        fontSize: TYPOGRAPHY.fontSize.sm,
+        color: COLORS.mediumGray,
+        marginTop: 4,
+    },
+    serviceItemPrice: {
+        fontSize: TYPOGRAPHY.fontSize.md,
+        fontWeight: TYPOGRAPHY.fontWeight.bold,
+        color: COLORS.charcoal,
+    },
+    priceRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         marginBottom: 8,
     },
-    summaryLabel: {
-        fontSize: TYPOGRAPHY.fontSize.md,
+    priceLabel: {
+        fontSize: TYPOGRAPHY.fontSize.sm,
         color: COLORS.darkGray,
     },
-    summaryValue: {
-        fontSize: TYPOGRAPHY.fontSize.md,
+    qtyText: {
+        fontSize: TYPOGRAPHY.fontSize.xs,
+        color: COLORS.mediumGray,
+    },
+    priceValue: {
+        fontSize: TYPOGRAPHY.fontSize.sm,
         color: COLORS.charcoal,
     },
     divider: {
@@ -749,15 +801,30 @@ const styles = StyleSheet.create({
         backgroundColor: COLORS.lightGray,
         marginVertical: SPACING.md,
     },
+    totalRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginTop: 10,
+        paddingTop: 10,
+        borderTopWidth: 1,
+        borderTopColor: COLORS.lightGray,
+    },
     totalLabel: {
-        fontSize: TYPOGRAPHY.fontSize.lg,
+        fontSize: TYPOGRAPHY.fontSize.md,
         fontWeight: TYPOGRAPHY.fontWeight.bold,
         color: COLORS.charcoal,
     },
     totalValue: {
-        fontSize: TYPOGRAPHY.fontSize.xl,
+        fontSize: TYPOGRAPHY.fontSize.lg,
         fontWeight: TYPOGRAPHY.fontWeight.bold,
-        color: COLORS.charcoal,
+        color: COLORS.primary,
+    },
+    paymentStatusBadge: {
+        marginTop: SPACING.md,
+        padding: SPACING.sm,
+        borderRadius: BORDER_RADIUS.md,
+        alignItems: 'center',
+        backgroundColor: COLORS.offWhite,
     },
     paymentStatus: {
         flexDirection: 'row',

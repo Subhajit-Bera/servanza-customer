@@ -91,18 +91,12 @@ const MyBookingsScreen: React.FC = () => {
         const statusConfig = getAggregateStatusConfig(bookings);
         const formattedDate = dayjs(item.scheduledStart || item.createdAt).format('MMM D, YYYY • h:mm A');
         
-        const metadataItems = bookings[0]?.metadata?.items || [];
-        const useMetadata = metadataItems.length > 0;
+        const items = bookings[0]?.metadata?.items || [];
+        const hasMultiple = items.length > 1;
         
-        const firstTwoItems = useMetadata ? metadataItems.slice(0, 2) : bookings.slice(0, 2);
-        const remainingCount = (useMetadata ? metadataItems.length : bookings.length) - 2;
-        const actualRemainingCount = remainingCount > 0 ? remainingCount : 0;
-        
-        const title = firstTwoItems.length > 0 
-            ? firstTwoItems.map((b: any) => b.title || b.service?.title).join(', ') 
-            : 'Service';
-        
-        const displayTitle = title + (actualRemainingCount > 0 ? ` + ${actualRemainingCount} more` : '');
+        const displayTitle = hasMultiple 
+            ? `${items[0]?.title} +${items.length - 1} more`
+            : items[0]?.title || 'Service Booking';
 
         const buddy = bookings[0]?.assignments?.[0]?.buddy;
 
@@ -122,25 +116,31 @@ const MyBookingsScreen: React.FC = () => {
                 </View>
 
                 <View style={styles.cardBody}>
-                    <View style={styles.imageGallery}>
-                        {firstTwoItems.map((b: any, index: number) => {
-                            const imageUrl = b.imageUrl || b.service?.imageUrl;
-                            return (
-                                <View key={b.serviceId || b.id} style={[styles.imageWrapper, { zIndex: 10 - index, marginLeft: index > 0 ? -15 : 0 }]}>
-                                    {imageUrl ? (
-                                        <Image source={{ uri: imageUrl }} style={styles.serviceImage} />
-                                    ) : (
-                                        <View style={styles.serviceImagePlaceholder}>
-                                            <Ionicons name="construct" size={20} color={COLORS.primary} />
-                                        </View>
-                                    )}
-                                </View>
-                            );
-                        })}
-                        {actualRemainingCount > 0 && (
-                            <View style={[styles.imageWrapper, styles.overflowBadge, { zIndex: 8, marginLeft: -15 }]}>
-                                <Text style={styles.overflowText}>+{actualRemainingCount}</Text>
+                    <View style={styles.imageContainer}>
+                        {hasMultiple ? (
+                            <View style={styles.multiImageWrapper}>
+                                {items.slice(0, 2).map((item: any, index: number) => (
+                                    <Image
+                                        key={index}
+                                        source={{ uri: item.imageUrl }}
+                                        style={[
+                                            styles.serviceImage,
+                                            styles.overlappingImage,
+                                            index > 0 && { marginLeft: -15, zIndex: 2 - index }
+                                        ]}
+                                    />
+                                ))}
+                                {items.length > 2 && (
+                                    <View style={[styles.serviceImage, styles.moreBadge, { marginLeft: -15, zIndex: 0 }]}>
+                                        <Text style={styles.moreBadgeText}>+{items.length - 2}</Text>
+                                    </View>
+                                )}
                             </View>
+                        ) : (
+                            <Image 
+                                source={{ uri: items[0]?.imageUrl || bookings[0]?.service?.imageUrl }} 
+                                style={styles.serviceImage} 
+                            />
                         )}
                     </View>
 
@@ -364,10 +364,28 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         marginBottom: SPACING.sm,
     },
-    imageGallery: {
-        flexDirection: 'row',
+    imageContainer: {
         marginRight: SPACING.md,
+    },
+    multiImageWrapper: {
+        flexDirection: 'row',
         alignItems: 'center',
+    },
+    overlappingImage: {
+        borderWidth: 2,
+        borderColor: COLORS.white,
+    },
+    moreBadge: {
+        backgroundColor: COLORS.inputBackground,
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 2,
+        borderColor: COLORS.white,
+    },
+    moreBadgeText: {
+        fontSize: TYPOGRAPHY.fontSize.xs,
+        fontWeight: TYPOGRAPHY.fontWeight.bold,
+        color: COLORS.textSecondary,
     },
     imageWrapper: {
         width: 48,
@@ -379,8 +397,9 @@ const styles = StyleSheet.create({
         overflow: 'hidden',
     },
     serviceImage: {
-        width: '100%',
-        height: '100%',
+        width: 48,
+        height: 48,
+        borderRadius: 24,
         resizeMode: 'cover',
     },
     serviceImagePlaceholder: {
@@ -389,16 +408,6 @@ const styles = StyleSheet.create({
         backgroundColor: COLORS.primaryLight,
         justifyContent: 'center',
         alignItems: 'center',
-    },
-    overflowBadge: {
-        backgroundColor: COLORS.inputBackground,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    overflowText: {
-        fontSize: TYPOGRAPHY.fontSize.xs,
-        fontWeight: TYPOGRAPHY.fontWeight.bold,
-        color: COLORS.textSecondary,
     },
     serviceInfo: {
         flex: 1,
