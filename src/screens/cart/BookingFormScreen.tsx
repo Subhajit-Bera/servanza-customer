@@ -422,13 +422,13 @@ const BookingFormScreen: React.FC = () => {
                                         <View style={styles.addressHeader}>
                                             <View style={styles.addressIcon}>
                                                 <Ionicons
-                                                    name={address.label === 'Home' ? 'home' : address.label === 'Work' ? 'briefcase' : 'location'}
+                                                    name="location"
                                                     size={16}
-                                                    color={isSelected ? COLORS.white : COLORS.textSecondary}
+                                                    color={COLORS.textSecondary}
                                                 />
                                             </View>
                                             <Text style={[styles.addressLabel, isSelected && styles.selectedAddressText]}>
-                                                {address.label}
+                                                Address
                                             </Text>
                                             {isSelected && (
                                                 <View style={styles.checkIcon}>

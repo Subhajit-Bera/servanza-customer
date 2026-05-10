@@ -619,7 +619,7 @@ const styles = StyleSheet.create({
     },
     couponSection: {
         marginTop: SPACING.sm,
-        marginBottom: SPACING.xl,
+        // marginBottom: SPACING.sm,
     },
     couponInputContainer: {
         flexDirection: 'row',
@@ -736,13 +736,13 @@ const styles = StyleSheet.create({
     divider: {
         height: 1,
         backgroundColor: COLORS.divider,
-        marginVertical: 4,
+        // marginVertical: 1,
     },
     totalRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginTop: 4,
+        // marginTop: 1,
     },
     totalLabel: {
         fontSize: TYPOGRAPHY.fontSize.xl,
@@ -817,7 +817,7 @@ const styles = StyleSheet.create({
         color: COLORS.white,
     },
     similarServicesSection: {
-        marginTop: SPACING.md,
+        marginTop: SPACING.sm,
         marginBottom: SPACING.xl,
     },
     serviceCard: {
