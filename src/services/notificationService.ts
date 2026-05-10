@@ -194,13 +194,17 @@ export const setupNotificationListeners = (): () => void => {
     const unsubscribeForeground = onMessage(messaging, async (remoteMessage) => {
         console.log('[Notifications] Foreground message:', remoteMessage);
 
+        // Extract title/body from either notification payload or data-only payload
+        const title = remoteMessage.notification?.title || (remoteMessage.data?.title as string) || 'Servanza';
+        const body = remoteMessage.notification?.body || (remoteMessage.data?.body as string) || '';
+
         // Show local notification for foreground messages
-        if (remoteMessage.notification) {
+        if (title || body) {
             const channelId = resolveChannel(remoteMessage.data?.type as string);
             await Notifications.scheduleNotificationAsync({
                 content: {
-                    title: remoteMessage.notification.title || 'Servanza',
-                    body: remoteMessage.notification.body || '',
+                    title,
+                    body,
                     data: remoteMessage.data as Record<string, string>,
                     sound: true,
                     ...(Platform.OS === 'android' && { channelId }),

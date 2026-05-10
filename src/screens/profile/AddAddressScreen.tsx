@@ -267,45 +267,17 @@ const AddAddressScreen: React.FC = () => {
 
                         {/* Form */}
                         <View style={styles.formContainer}>
-                            {/* Label Selection */}
-                            <View style={styles.labelSection}>
-                                <Text style={styles.inputLabel}>ADDRESS TYPE</Text>
-                                <View style={styles.labelContainer}>
-                                    {ADDRESS_LABELS.map((l) => (
-                                        <TouchableOpacity
-                                            key={l}
-                                            style={[
-                                                styles.labelChip,
-                                                label === l && styles.activeLabelChip
-                                            ]}
-                                            onPress={() => setLabel(l)}
-                                        >
-                                            <Ionicons
-                                                name={l === 'Home' ? 'home' : l === 'Work' ? 'briefcase' : 'location'}
-                                                size={16}
-                                                color={label === l ? COLORS.white : COLORS.textSecondary}
-                                            />
-                                            <Text style={[
-                                                styles.labelText,
-                                                label === l && styles.activeLabelText
-                                            ]}>
-                                                {l}
-                                            </Text>
-                                        </TouchableOpacity>
-                                    ))}
-                                </View>
-                            </View>
-
                             {/* Address Fields */}
                             <View style={styles.inputGroup}>
                                 <Text style={styles.inputLabel}>ADDRESS LINE 1</Text>
                                 <TextInput
-                                    style={styles.input}
+                                    style={[styles.input, styles.inputDisabled]}
                                     value={addressLine1}
-                                    onChangeText={setAddressLine1}
-                                    placeholder="House No., Building, Street Area"
+                                    editable={false}
+                                    placeholder="Set via map pin location"
                                     placeholderTextColor={COLORS.textLight}
                                 />
+                                <Text style={styles.inputHint}>Adjust the map pin above to change this address</Text>
                             </View>
 
                             <View style={styles.inputGroup}>
@@ -510,6 +482,16 @@ const styles = StyleSheet.create({
         color: COLORS.textPrimary,
         borderWidth: 1,
         borderColor: COLORS.border,
+    },
+    inputDisabled: {
+        backgroundColor: COLORS.background,
+        color: COLORS.textSecondary,
+    },
+    inputHint: {
+        fontSize: TYPOGRAPHY.fontSize.xs,
+        color: COLORS.textLight,
+        marginTop: 4,
+        fontStyle: 'italic',
     },
     row: {
         flexDirection: 'row',

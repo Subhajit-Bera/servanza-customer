@@ -41,6 +41,7 @@ const CartScreen: React.FC = () => {
     );
     const [couponCode, setCouponCode] = useState('');
     const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
+    const [isBreakdownExpanded, setIsBreakdownExpanded] = useState(false);
 
     const handleQuantityChange = (serviceId: string, delta: number) => {
         const item = items.find(i => i.service.id === serviceId);
@@ -381,12 +382,42 @@ const CartScreen: React.FC = () => {
             {/* Summary Footer */}
             <View style={styles.footer}>
                 <View style={styles.summaryContainer}>
-                    <View style={styles.summaryRow}>
-                        <Text style={styles.summaryLabel}>
-                            Subtotal ({effectivelySelected.length} item{effectivelySelected.length !== 1 ? 's' : ''})
-                        </Text>
+                    {/* Per-item price breakdown (Accordion) */}
+                    {isBreakdownExpanded && effectivelySelected.length > 0 && (
+                        <View style={{ marginBottom: 4 }}>
+                            {effectivelySelected.map((item) => (
+                                <View style={[styles.summaryRow, { marginTop: 4 }]} key={`breakdown-${item.service.id}`}>
+                                    <Text style={[styles.summaryLabel, { color: COLORS.textPrimary }]} numberOfLines={1}>
+                                        {item.service.title} × {item.quantity}
+                                    </Text>
+                                    <Text style={[styles.summaryValue, { fontSize: TYPOGRAPHY.fontSize.sm }]}>
+                                        {formatCurrency(item.service.basePrice * item.quantity)}
+                                    </Text>
+                                </View>
+                            ))}
+                            <View style={[styles.divider, { marginTop: 8 }]} />
+                        </View>
+                    )}
+
+                    <TouchableOpacity 
+                        style={styles.summaryRow}
+                        onPress={() => setIsBreakdownExpanded(!isBreakdownExpanded)}
+                        activeOpacity={0.7}
+                    >
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                            <Text style={styles.summaryLabel}>
+                                Subtotal ({effectivelySelected.length} item{effectivelySelected.length !== 1 ? 's' : ''})
+                            </Text>
+                            {effectivelySelected.length > 0 && (
+                                <Ionicons 
+                                    name={isBreakdownExpanded ? 'chevron-up' : 'chevron-down'} 
+                                    size={16} 
+                                    color={COLORS.textSecondary} 
+                                />
+                            )}
+                        </View>
                         <Text style={styles.summaryValue}>{formatCurrency(selectedSubtotal)}</Text>
-                    </View>
+                    </TouchableOpacity>
 
                     {appliedCoupon && (
                         <View style={styles.summaryRow}>

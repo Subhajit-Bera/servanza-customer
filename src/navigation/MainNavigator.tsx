@@ -73,6 +73,7 @@ export type CartStackParamList = {
     Payment: { bookingId: string };
     BookingConfirmation: { bookingId: string; scheduledTime?: string; address?: string };
     AddAddress: undefined;
+    ServiceDetails: { serviceId: string };
 };
 
 export type ProfileStackParamList = {
@@ -150,6 +151,7 @@ const CartStackNavigator = () => (
         <CartStack.Screen name="Payment" component={PaymentScreen} />
         <CartStack.Screen name="BookingConfirmation" component={BookingConfirmationScreen} />
         <CartStack.Screen name="AddAddress" component={AddAddressScreen} />
+        <CartStack.Screen name="ServiceDetails" component={ServiceDetailsScreen} />
     </CartStack.Navigator>
 );
 

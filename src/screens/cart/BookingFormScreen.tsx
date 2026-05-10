@@ -70,14 +70,9 @@ const BookingFormScreen: React.FC = () => {
     // Get available hours for the selected date
     const getAvailableHours = () => {
         if (!isToday) return AVAILABLE_HOURS;
-        const { minHour, minMinute } = getMinimumTime();
-        // If current minute > 0, we need the next hour after minHour
-        // since minHour = currentHour + 1, we need hours >= minHour
-        return AVAILABLE_HOURS.filter(h => {
-            if (h < minHour) return false;
-            if (h === minHour && minMinute > 0) return false;
-            return true;
-        });
+        const { minHour } = getMinimumTime();
+        // Include all hours >= minHour. Minute-level filtering is handled by getAvailableMinutes.
+        return AVAILABLE_HOURS.filter(h => h >= minHour);
     };
 
     // Get available minutes for the selected hour
