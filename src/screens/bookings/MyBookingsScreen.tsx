@@ -34,10 +34,12 @@ const getAggregateStatusConfig = (bookings: any[]) => {
     
     // Logic for aggregate status
     const hasInProgress = bookings.some(b => b.status === 'IN_PROGRESS' || b.status === 'ON_WAY' || b.status === 'ARRIVED');
+    const hasAccepted = bookings.some(b => b.status === 'ACCEPTED');
     const allCompleted = bookings.every(b => b.status === 'COMPLETED');
     const allCancelled = bookings.every(b => b.status === 'CANCELLED');
     
     if (hasInProgress) return { color: COLORS.darkGreen, label: 'In Progress', bg: COLORS.success + '15' };
+    if (hasAccepted) return { color: COLORS.primary, label: 'Assigned', bg: COLORS.primaryLight };
     if (allCompleted) return { color: COLORS.success, label: 'Completed', bg: COLORS.success + '15' };
     if (allCancelled) return { color: COLORS.error, label: 'Cancelled', bg: COLORS.error + '15' };
     return { color: COLORS.warning, label: 'Pending', bg: COLORS.warning + '15' };
