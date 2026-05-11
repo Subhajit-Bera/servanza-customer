@@ -105,6 +105,18 @@ const CartScreen: React.FC = () => {
     };
 
     const handleProceed = () => {
+        const selectedItems = items.filter(i => selectedIds.has(i.service.id));
+        const hasInstant = selectedItems.some(i => i.service.isInstant);
+        const hasScheduled = selectedItems.some(i => !i.service.isInstant);
+
+        if (hasInstant && hasScheduled) {
+            Alert.alert(
+                'Mixed Services Detected',
+                'Your selection contains both instant and scheduled services. Please checkout instant and scheduled services separately.'
+            );
+            return;
+        }
+
         requireAuth(
             () => navigation.navigate('BookingForm', { selectedIds: Array.from(selectedIds) }),
             'BookingForm',

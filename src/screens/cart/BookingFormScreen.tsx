@@ -60,7 +60,16 @@ const BookingFormScreen: React.FC = () => {
 
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const [bookingType, setBookingType] = useState<BookingType>('SCHEDULED');
+    const cartHasInstant = items.some(item => item.service.isInstant);
+    const currentHour = dayjs().hour();
+    const isWorkingHours = currentHour >= 9 && currentHour < 20;
+
+    const [bookingType, setBookingType] = useState<BookingType>(cartHasInstant ? 'IMMEDIATE' : 'SCHEDULED');
+    
+    useEffect(() => {
+        setBookingType(cartHasInstant ? 'IMMEDIATE' : 'SCHEDULED');
+    }, [cartHasInstant]);
+
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [selectedHour, setSelectedHour] = useState(9);
     const [selectedMinute, setSelectedMinute] = useState(0);
@@ -86,37 +95,49 @@ const BookingFormScreen: React.FC = () => {
     // Get available hours for the selected date
     const getAvailableHours = () => {
         if (!isToday) return AVAILABLE_HOURS;
-        const { minHour } = getMinimumTime();
-        // Include all hours >= minHour. Minute-level filtering is handled by getAvailableMinutes.
-        return AVAILABLE_HOURS.filter(h => h >= minHour);
+        const { minHour, minMinute } = getMinimumTime();
+        
+        return AVAILABLE_HOURS.filter(h => {
+            if (h < minHour) return false;
+            if (h === minHour) {
+                const lastSlot = AVAILABLE_MINUTES[AVAILABLE_MINUTES.length - 1];
+                if (minMinute > lastSlot) return false;
+            }
+            return true;
+        });
     };
 
     // Get available minutes for the selected hour
-    const getAvailableMinutes = () => {
+    const getAvailableMinutes = (hour: number) => {
         if (!isToday) return AVAILABLE_MINUTES;
         const { minHour, minMinute } = getMinimumTime();
-        if (selectedHour > minHour) return AVAILABLE_MINUTES;
-        if (selectedHour === minHour) {
+        if (hour > minHour) return AVAILABLE_MINUTES;
+        if (hour === minHour) {
             return AVAILABLE_MINUTES.filter(m => m >= minMinute);
         }
-        return AVAILABLE_MINUTES;
+        return [];
     };
 
-    // Auto-correct selected time when date changes to today
+    // Auto-correct selected time when date changes or on mount
     useEffect(() => {
-        if (isToday) {
-            const availHours = getAvailableHours();
-            if (availHours.length === 0) {
+        const availHours = getAvailableHours();
+        if (availHours.length === 0) {
+            if (isToday) {
                 // No hours available today — move to next day
                 setSelectedDate(dayjs().add(1, 'day').toDate());
-                setSelectedHour(9);
-                setSelectedMinute(0);
-                return;
             }
-            if (!availHours.includes(selectedHour)) {
-                setSelectedHour(availHours[0]);
-                setSelectedMinute(0);
-            }
+            return;
+        }
+
+        let currentHour = selectedHour;
+        if (!availHours.includes(selectedHour)) {
+            currentHour = availHours[0];
+            setSelectedHour(currentHour);
+        }
+
+        const availMins = getAvailableMinutes(currentHour);
+        if (!availMins.includes(selectedMinute)) {
+            setSelectedMinute(availMins[0] || 0);
         }
     }, [selectedDate]);
 
@@ -297,29 +318,6 @@ const BookingFormScreen: React.FC = () => {
                 contentContainerStyle={styles.scrollContent}
                 showsVerticalScrollIndicator={false}
             >
-                {/* Booking Type Toggle */}
-                {/* <View style={styles.toggleContainer}>
-                    <TouchableOpacity
-                        style={[styles.toggleButton, bookingType === 'SCHEDULED' && styles.activeToggle]}
-                        onPress={() => setBookingType('SCHEDULED')}
-                    >
-                        <Text style={[styles.toggleText, bookingType === 'SCHEDULED' && styles.activeToggleText]}>
-                            Schedule
-                        </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        style={[styles.toggleButton, bookingType === 'IMMEDIATE' && styles.activeToggle]}
-                        onPress={() => setBookingType('IMMEDIATE')}
-                    >
-                        <View style={styles.instantRow}>
-                            <Ionicons name="flash" size={14} color={bookingType === 'IMMEDIATE' ? COLORS.white : COLORS.warning} />
-                            <Text style={[styles.toggleText, bookingType === 'IMMEDIATE' && styles.activeToggleText]}>
-                                Instant
-                            </Text>
-                        </View>
-                    </TouchableOpacity>
-                </View> */}
-
                 {bookingType === 'SCHEDULED' && (
                     <>
                         {/* Date Selection */}
@@ -372,7 +370,7 @@ const BookingFormScreen: React.FC = () => {
                                                     onPress={() => {
                                                         setSelectedHour(hour);
                                                         // Reset minute if not available for new hour
-                                                        const availMins = getAvailableMinutes();
+                                                        const availMins = getAvailableMinutes(hour);
                                                         if (!availMins.includes(selectedMinute)) {
                                                             setSelectedMinute(availMins[0] || 0);
                                                         }
@@ -389,7 +387,7 @@ const BookingFormScreen: React.FC = () => {
                                     {/* Minute Selection */}
                                     <Text style={styles.timeLabel}>Minute</Text>
                                     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.timeChipsList}>
-                                        {getAvailableMinutes().map((minute) => {
+                                        {getAvailableMinutes(selectedHour).map((minute) => {
                                             const isSelected = selectedMinute === minute;
                                             return (
                                                 <TouchableOpacity
@@ -416,6 +414,22 @@ const BookingFormScreen: React.FC = () => {
                             )}
                         </View>
                     </>
+                )}
+
+                {bookingType === 'IMMEDIATE' && (
+                    <View style={[styles.section, { backgroundColor: isWorkingHours ? '#E8F5E9' : '#FFEBEE', padding: SPACING.lg, borderRadius: BORDER_RADIUS.lg }]}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: SPACING.sm }}>
+                            <Ionicons name={isWorkingHours ? "flash" : "time"} size={24} color={isWorkingHours ? COLORS.primary : COLORS.error} style={{ marginRight: SPACING.sm }} />
+                            <Text style={{ fontSize: TYPOGRAPHY.fontSize.lg, fontWeight: TYPOGRAPHY.fontWeight.bold, color: isWorkingHours ? COLORS.primary : COLORS.error }}>
+                                Instant Service
+                            </Text>
+                        </View>
+                        <Text style={{ fontSize: TYPOGRAPHY.fontSize.md, color: COLORS.charcoal, lineHeight: 22 }}>
+                            {isWorkingHours 
+                                ? "A buddy will arrive within 15 mins after you book the service." 
+                                : "Instant service is available from 9 a.m to 8 p.m. You can book again tomorrow."}
+                        </Text>
+                    </View>
                 )}
 
                 {/* Address Selection */}
@@ -515,9 +529,9 @@ const BookingFormScreen: React.FC = () => {
                     <Text style={styles.itemsCount}>{items.length} item{items.length !== 1 ? 's' : ''}</Text>
                 </View>
                 <TouchableOpacity
-                    style={[styles.confirmButton, (loading || isSubmitting) && styles.disabledButton]}
+                    style={[styles.confirmButton, (loading || isSubmitting || (bookingType === 'IMMEDIATE' && !isWorkingHours) || !selectedAddressId) && styles.disabledButton]}
                     onPress={handleConfirm}
-                    disabled={loading || isSubmitting}
+                    disabled={loading || isSubmitting || (bookingType === 'IMMEDIATE' && !isWorkingHours) || !selectedAddressId}
                 >
                     {(loading || isSubmitting) ? (
                         <ActivityIndicator color={COLORS.white} />

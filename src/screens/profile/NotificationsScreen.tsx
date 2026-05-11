@@ -55,12 +55,14 @@ const NotificationsScreen: React.FC = () => {
             
             // Backend returns: { success: true, data: { notifications: [...], pagination: {...} } }
             const payload = responseData?.data || responseData;
-            const newNotifications = Array.isArray(payload) 
+            const rawNotifications = Array.isArray(payload) 
                 ? payload 
                 : (payload?.notifications || payload?.data || []);
             const pagination = payload?.pagination;
 
-            const notifArray = Array.isArray(newNotifications) ? newNotifications : [];
+            // Filter out duplicate legacy generic notifications
+            const notifArray = (Array.isArray(rawNotifications) ? rawNotifications : [])
+                .filter((n: Notification) => !(n.title === 'Notification' && n.body === 'You have a new notification'));
 
             if (refresh || pageNum === 1) {
                 setNotifications(notifArray);

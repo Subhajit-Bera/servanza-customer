@@ -93,6 +93,7 @@ export interface Service {
     averageRating?: number;
     totalReviews?: number;
     metadata?: ServiceMetadata;
+    isInstant?: boolean;
 }
 
 // Cart Types
