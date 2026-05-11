@@ -123,6 +123,22 @@ const cartSlice = createSlice({
             persistCart(state.items);
         },
 
+        // Remove multiple items from cart
+        removeMultipleFromCart: (state, action: PayloadAction<string[]>) => {
+            state.items = state.items.filter(item => !action.payload.includes(item.service.id));
+
+            const totals = calculateTotals(state.items, state.appliedCoupon);
+            state.totalItems = totals.totalItems;
+            state.subtotal = totals.subtotal;
+            state.tax = totals.tax;
+            state.total = totals.total;
+            if (state.appliedCoupon) {
+                state.appliedCoupon.discountAmount = totals.discountAmount;
+            }
+
+            persistCart(state.items);
+        },
+
         // Update quantity
         updateQuantity: (state, action: PayloadAction<{ serviceId: string; quantity: number }>) => {
             const { serviceId, quantity } = action.payload;
@@ -276,6 +292,7 @@ export const {
     loadCart,
     addToCart,
     removeFromCart,
+    removeMultipleFromCart,
     updateQuantity,
     updateCartItems,
     applyCoupon,

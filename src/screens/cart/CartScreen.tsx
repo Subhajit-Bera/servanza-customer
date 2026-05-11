@@ -106,8 +106,9 @@ const CartScreen: React.FC = () => {
 
     const handleProceed = () => {
         requireAuth(
-            () => navigation.navigate('BookingForm'),
+            () => navigation.navigate('BookingForm', { selectedIds: Array.from(selectedIds) }),
             'BookingForm',
+            { selectedIds: Array.from(selectedIds) }
         );
     };
 

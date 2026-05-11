@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation, useIsFocused } from '@react-navigation/native';
+import { useNavigation, useIsFocused, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import dayjs from 'dayjs';
@@ -20,7 +20,7 @@ import { COLORS, TYPOGRAPHY, SHADOWS, SPACING, BORDER_RADIUS, formatCurrency } f
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { fetchAddresses } from '../../store/slices/authSlice';
 import { createBooking } from '../../store/slices/bookingsSlice';
-import { clearCart, refreshCartPrices } from '../../store/slices/cartSlice';
+import { clearCart, refreshCartPrices, removeMultipleFromCart } from '../../store/slices/cartSlice';
 import { requireLocationPermission } from '../../hooks/useLocation';
 import { bookingApi, orderApi } from '../../api/client';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -28,6 +28,7 @@ import type { CartStackParamList } from '../../navigation/MainNavigator';
 import type { Address } from '../../types';
 
 type BookingFormNavigationProp = StackNavigationProp<CartStackParamList, 'BookingForm'>;
+type BookingFormRouteProp = RouteProp<CartStackParamList, 'BookingForm'>;
 
 type BookingType = 'IMMEDIATE' | 'SCHEDULED';
 
@@ -37,12 +38,27 @@ const AVAILABLE_MINUTES = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];
 
 const BookingFormScreen: React.FC = () => {
     const navigation = useNavigation<BookingFormNavigationProp>();
+    const route = useRoute<BookingFormRouteProp>();
     const dispatch = useAppDispatch();
     const isFocused = useIsFocused();
 
-    const { items, total, subtotal, tax, appliedCoupon } = useAppSelector((state) => state.cart);
+    const { selectedIds } = route.params || {};
+
+    const { items: allItems, appliedCoupon } = useAppSelector((state) => state.cart);
     const { addresses, defaultAddressId, user } = useAppSelector((state) => state.auth);
     const { loading } = useAppSelector((state) => state.bookings);
+    
+    // Filter items based on selectedIds
+    const items = selectedIds && selectedIds.length > 0 
+        ? allItems.filter(item => selectedIds.includes(item.service.id)) 
+        : allItems;
+        
+    const subtotal = items.reduce((sum, item) => sum + item.service.basePrice * item.quantity, 0);
+    const tax = Math.round(subtotal * 0.18);
+    const couponDiscount = appliedCoupon?.discountAmount || 0;
+    const total = subtotal + tax - couponDiscount;
+
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const [bookingType, setBookingType] = useState<BookingType>('SCHEDULED');
     const [selectedDate, setSelectedDate] = useState(new Date());
@@ -187,6 +203,7 @@ const BookingFormScreen: React.FC = () => {
         // Verify location permission for booking
         requireLocationPermission(
             async () => {
+                setIsSubmitting(true);
                 try {
                     // Pre-flight cart validation
                     const mappedItems = items.map(item => ({
@@ -227,7 +244,11 @@ const BookingFormScreen: React.FC = () => {
                         // Save phone for next time
                         await AsyncStorage.setItem('last_booking_phone', trimmedPhone);
                         
-                        dispatch(clearCart());
+                        if (selectedIds && selectedIds.length > 0) {
+                            dispatch(removeMultipleFromCart(selectedIds));
+                        } else {
+                            dispatch(clearCart());
+                        }
                         
                         // Build display info for confirmation screen
                         const selectedAddr = addresses.find(a => a.id === selectedAddressId);
@@ -247,6 +268,8 @@ const BookingFormScreen: React.FC = () => {
                     console.error('Booking error:', error);
                     const msg = error?.response?.data?.message || 'An unexpected error occurred';
                     Alert.alert('Error', msg);
+                } finally {
+                    setIsSubmitting(false);
                 }
             },
             () => {
@@ -492,11 +515,11 @@ const BookingFormScreen: React.FC = () => {
                     <Text style={styles.itemsCount}>{items.length} item{items.length !== 1 ? 's' : ''}</Text>
                 </View>
                 <TouchableOpacity
-                    style={[styles.confirmButton, loading && styles.disabledButton]}
+                    style={[styles.confirmButton, (loading || isSubmitting) && styles.disabledButton]}
                     onPress={handleConfirm}
-                    disabled={loading}
+                    disabled={loading || isSubmitting}
                 >
-                    {loading ? (
+                    {(loading || isSubmitting) ? (
                         <ActivityIndicator color={COLORS.white} />
                     ) : (
                         <>

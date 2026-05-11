@@ -113,7 +113,7 @@ const MyBookingsScreen: React.FC = () => {
             ? `${items[0]?.title} +${items.length - 1} more`
             : items[0]?.title || 'Service Booking';
 
-        const buddy = bookings[0]?.assignments?.[0]?.buddy;
+        const buddy = bookings[0]?.buddy || bookings[0]?.assignments?.[0]?.buddy;
 
         return (
             <TouchableOpacity

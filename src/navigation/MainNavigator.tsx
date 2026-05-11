@@ -69,8 +69,8 @@ export type BookingsStackParamList = {
 
 export type CartStackParamList = {
     Cart: undefined;
-    BookingForm: undefined;
-    Payment: { bookingId: string };
+    BookingForm: { selectedIds?: string[] };
+    Payment: { bookingId: string; amount?: number };
     BookingConfirmation: { bookingId: string; scheduledTime?: string; address?: string };
     AddAddress: undefined;
     ServiceDetails: { serviceId: string };

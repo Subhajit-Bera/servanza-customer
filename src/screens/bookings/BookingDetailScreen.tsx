@@ -17,6 +17,7 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import dayjs from 'dayjs';
 import { COLORS, TYPOGRAPHY, SHADOWS, SPACING, BORDER_RADIUS } from '../../theme';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
+import { useBookingStatus } from '../../hooks/useSocket';
 import type { RootState } from '../../store';
 import { fetchBookingById, cancelBooking } from '../../store/slices/bookingsSlice';
 import type { BookingsStackParamList } from '../../navigation/MainNavigator';
@@ -45,10 +46,11 @@ const BookingDetailScreen: React.FC = () => {
 
     const { bookingId } = route.params;
     const { selectedBooking: booking, loading } = useAppSelector((state: RootState) => state.bookings);
+    const { lastUpdate } = useBookingStatus(bookingId);
 
     useEffect(() => {
         dispatch(fetchBookingById(bookingId));
-    }, [bookingId]);
+    }, [bookingId, lastUpdate]);
 
     const handleTrackBuddy = () => {
         navigation.navigate('TrackBuddy', { bookingId });
@@ -425,7 +427,7 @@ const BookingDetailScreen: React.FC = () => {
                     {showPayNow && (
                         <TouchableOpacity
                             style={styles.payButton}
-                            onPress={() => (navigation as any).navigate('CartTab', { screen: 'Payment', params: { bookingId: booking.id } })}
+                            onPress={() => (navigation as any).navigate('CartTab', { screen: 'Payment', params: { bookingId: booking.id, amount: booking.totalAmount } })}
                         >
                             <Ionicons name="card" size={20} color={COLORS.white} />
                             <Text style={styles.payButtonText}>Pay Now</Text>

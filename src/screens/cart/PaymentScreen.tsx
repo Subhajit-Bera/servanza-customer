@@ -13,7 +13,7 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { COLORS, TYPOGRAPHY, SHADOWS, SPACING, BORDER_RADIUS, formatCurrency } from '../../theme';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
-import { clearCart } from '../../store/slices/cartSlice';
+
 import { paymentApi } from '../../api/client';
 import { CONFIG } from '../../config/constants';
 import RazorpayCheckout from 'react-native-razorpay';
@@ -27,8 +27,9 @@ const PaymentScreen: React.FC = () => {
     const route = useRoute<PaymentRouteProp>();
     const dispatch = useAppDispatch();
 
-    const { bookingId } = route.params;
-    const { total } = useAppSelector((state) => state.cart);
+    const { bookingId, amount } = route.params;
+    const { total: cartTotal } = useAppSelector((state) => state.cart);
+    const total = amount || cartTotal;
 
     const { user } = useAppSelector((state) => state.auth);
 
@@ -72,8 +73,7 @@ const PaymentScreen: React.FC = () => {
                 bookingId,
             });
 
-            // Clear cart after successful payment
-            dispatch(clearCart());
+
 
             // Navigate to confirmation
             navigation.replace('BookingConfirmation', { bookingId });
@@ -170,13 +170,13 @@ const PaymentScreen: React.FC = () => {
                         false
                     )}
 
-                    {renderPaymentMethod(
+                    {/* {renderPaymentMethod(
                         'WALLET',
                         'Wallets',
                         'Paytm, Amazon Pay, etc.',
                         'wallet-outline',
                         false
-                    )}
+                    )} */}
                 </View>
             </View>
 
