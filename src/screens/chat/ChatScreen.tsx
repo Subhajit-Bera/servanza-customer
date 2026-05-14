@@ -44,6 +44,7 @@ const ChatScreen = () => {
     } = useChat({ bookingId, currentUserId });
 
     const [inputText, setInputText] = useState('');
+    const [isSending, setIsSending] = useState(false);
     const flatListRef = useRef<FlatList>(null);
 
     useEffect(() => {
@@ -51,10 +52,16 @@ const ChatScreen = () => {
     }, [messages, markAsRead]);
 
     const handleSend = () => {
-        if (inputText.trim()) {
+        if (inputText.trim() && !isSending) {
+            setIsSending(true);
             sendMessage(inputText.trim());
             setInputText('');
             sendTyping(false);
+            
+            // Release the lock after 500ms (debouncing)
+            setTimeout(() => {
+                setIsSending(false);
+            }, 500);
         }
     };
 
@@ -110,7 +117,10 @@ const ChatScreen = () => {
     };
 
     return (
-        <View style={styles.container}>
+        <KeyboardAvoidingView 
+            style={styles.container}
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
             {/* Header */}
             <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
@@ -151,30 +161,25 @@ const ChatScreen = () => {
                 </View>
             )}
 
-            {/* Input Area */}
-            <KeyboardAvoidingView 
-                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-                keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
-            >
                 <View style={[styles.inputContainer, { paddingBottom: Math.max(insets.bottom, 15) }]}>
                     <TextInput
-                        style={styles.input}
+                        style={[styles.input]}
                         placeholder="Type a message..."
+                        placeholderTextColor={COLORS.charcoal}
                         value={inputText}
                         onChangeText={handleTextChange}
                         multiline
                         maxLength={500}
                     />
                     <TouchableOpacity 
-                        style={[styles.sendButton, !inputText.trim() && styles.sendButtonDisabled]} 
+                        style={[styles.sendButton, (!inputText.trim() || isSending) && styles.sendButtonDisabled]} 
                         onPress={handleSend}
-                        disabled={!inputText.trim()}
+                        disabled={!inputText.trim() || isSending}
                     >
                         <Ionicons name="send" size={20} color="white" />
                     </TouchableOpacity>
                 </View>
-            </KeyboardAvoidingView>
-        </View>
+        </KeyboardAvoidingView>
     );
 };
 

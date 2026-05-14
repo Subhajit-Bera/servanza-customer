@@ -62,6 +62,10 @@ export const useChat = ({ bookingId, currentUserId }: UseChatOptions) => {
                 setMessages((prev) => {
                     // Deduplicate
                     if (prev.some((m) => m.id === data.id)) return prev;
+                    
+                    // Ignore our own echoes because optimistic UI already added them
+                    if (data.senderId === currentUserId) return prev;
+                    
                     return [...prev, data];
                 });
 
@@ -130,13 +134,26 @@ export const useChat = ({ bookingId, currentUserId }: UseChatOptions) => {
             const socket = getSocket();
             if (!socket?.connected || !content.trim()) return;
 
+            const tempMessage: ChatMessage = {
+                id: Date.now().toString() + Math.random().toString(36).substring(7),
+                bookingId,
+                senderId: currentUserId,
+                sender: { id: currentUserId, name: 'You', role: 'CUSTOMER' },
+                content: content.trim(),
+                type: 'TEXT',
+                isRead: false,
+                createdAt: new Date().toISOString(),
+            };
+
+            setMessages((prev) => [...prev, tempMessage]);
+
             socket.emit('chat:send', {
                 bookingId,
                 content: content.trim(),
                 type: 'TEXT',
             });
         },
-        [bookingId]
+        [bookingId, currentUserId]
     );
 
     // Emit typing indicator

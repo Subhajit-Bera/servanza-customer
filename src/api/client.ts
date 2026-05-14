@@ -119,7 +119,7 @@ export const authApi = {
         apiClient.post('/auth/firebase', { idToken, role: 'USER' }),
 
     updateDeviceToken: (token: string) =>
-        apiClient.post('/users/device-token', { token }),
+        apiClient.post('/users/device-token', { token, appSource: 'CUSTOMER_APP' }),
 
     logout: () =>
         apiClient.post('/auth/logout'),

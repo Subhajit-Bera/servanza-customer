@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { getSocket, addSocketListener, removeSocketListener } from '../services/socketClient';
 import { WEBRTC_CONFIG } from '../config/constants';
 import InCallManager from 'react-native-incall-manager';
+import { RTCPeerConnection, RTCIceCandidate, RTCSessionDescription, mediaDevices } from 'react-native-webrtc';
 
 export type CallState = 'idle' | 'calling' | 'ringing' | 'connected' | 'ended';
 
@@ -69,21 +70,21 @@ export const useCall = ({ bookingId, currentUserId, onIncomingCall }: UseCallOpt
 
             const pc = new RTCPeerConnection({ iceServers: servers });
 
-            pc.onicecandidate = (event) => {
+            (pc as any).addEventListener('icecandidate', (event: any) => {
                 if (event.candidate && callIdRef.current && socket?.connected) {
                     socket.emit('call:ice-candidate', {
                         callId: callIdRef.current,
                         candidate: event.candidate.toJSON(),
                     });
                 }
-            };
+            });
 
-            pc.onconnectionstatechange = () => {
+            (pc as any).addEventListener('connectionstatechange', () => {
                 console.log('[Call] Connection state:', pc.connectionState);
                 if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed') {
                     endCall();
                 }
-            };
+            });
 
             peerConnectionRef.current = pc;
             return pc;
@@ -110,15 +111,14 @@ export const useCall = ({ bookingId, currentUserId, onIncomingCall }: UseCallOpt
 
         try {
             // Get audio stream
-            const { mediaDevices } = require('react-native-webrtc');
             const stream = await mediaDevices.getUserMedia({ audio: true, video: false });
-            localStreamRef.current = stream;
+            localStreamRef.current = stream as any;
 
             const pc = createPeerConnection();
 
             // Add audio tracks to peer connection
-            stream.getTracks().forEach((track: MediaStreamTrack) => {
-                pc.addTrack(track, stream);
+            (stream as any).getTracks().forEach((track: any) => {
+                pc.addTrack(track, stream as any);
             });
 
             // Create offer
@@ -145,18 +145,17 @@ export const useCall = ({ bookingId, currentUserId, onIncomingCall }: UseCallOpt
             if (!socket?.connected) return;
 
             try {
-                const { mediaDevices } = require('react-native-webrtc');
                 const stream = await mediaDevices.getUserMedia({ audio: true, video: false });
-                localStreamRef.current = stream;
+                localStreamRef.current = stream as any;
 
                 iceServersRef.current = incomingData.iceServers;
                 const pc = createPeerConnection(incomingData.iceServers);
 
-                stream.getTracks().forEach((track: MediaStreamTrack) => {
-                    pc.addTrack(track, stream);
+                (stream as any).getTracks().forEach((track: any) => {
+                    pc.addTrack(track, stream as any);
                 });
 
-                await pc.setRemoteDescription(incomingData.offer);
+                await pc.setRemoteDescription(new RTCSessionDescription(incomingData.offer as any));
 
                 const answer = await pc.createAnswer();
                 await pc.setLocalDescription(answer);
@@ -243,12 +242,12 @@ export const useCall = ({ bookingId, currentUserId, onIncomingCall }: UseCallOpt
             }
         };
 
-        const handleCallAnswered = async (data: { callId: string; answer: RTCSessionDescriptionInit }) => {
+        const handleCallAnswered = async (data: { callId: string; answer: any }) => {
             const pc = peerConnectionRef.current;
             if (!pc) return;
 
             try {
-                await pc.setRemoteDescription(data.answer);
+                await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
                 setCallState('connected');
                 startDurationTimer();
             } catch (error) {
@@ -262,7 +261,6 @@ export const useCall = ({ bookingId, currentUserId, onIncomingCall }: UseCallOpt
             if (!pc) return;
 
             try {
-                const { RTCIceCandidate } = require('react-native-webrtc');
                 await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
             } catch (error) {
                 console.error('[Call] Error adding ICE candidate:', error);

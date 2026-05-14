@@ -3,6 +3,15 @@ import * as SecureStore from 'expo-secure-store';
 import { CONFIG } from '../config/constants';
 
 // Socket instance
+// Events that are statically bound in connectSocket
+const PREDEFINED_EVENTS = [
+    'connect', 'disconnect', 'connect_error', 'error', 
+    'buddy:location:live', 'buddy:location:update', 
+    'booking:updated', 'booking:status:changed',
+    'chat:message', 'chat:new-message', 'chat:read-receipt', 'chat:typing', 'chat:joined',
+    'call:incoming', 'call:initiated', 'call:answered', 'call:ice-candidate', 'call:rejected', 'call:ended', 'call:missed'
+];
+
 let socket: Socket | null = null;
 
 // Event listeners map
@@ -110,6 +119,30 @@ export const connectSocket = async (): Promise<Socket | null> => {
             notifyListeners('booking:status:changed', data);
         });
 
+        // Listen for chat events
+        ['chat:message', 'chat:new-message', 'chat:read-receipt', 'chat:typing', 'chat:joined'].forEach((event) => {
+            socket!.on(event, (data) => {
+                console.log(`[Socket] ${event}:`, data);
+                notifyListeners(event, data);
+            });
+        });
+
+        // Listen for call events
+        ['call:incoming', 'call:initiated', 'call:answered', 'call:ice-candidate', 'call:rejected', 'call:ended', 'call:missed'].forEach((event) => {
+            socket!.on(event, (data) => {
+                console.log(`[Socket] ${event}:`, data);
+                notifyListeners(event, data);
+            });
+        });
+
+        // Re-bind any dynamically added listeners
+        eventListeners.forEach((_, event) => {
+            // Avoid re-binding the hardcoded ones above
+            if (!PREDEFINED_EVENTS.includes(event)) {
+                socket!.on(event, (data) => notifyListeners(event, data));
+            }
+        });
+
         return socket;
     } catch (error) {
         console.error('[Socket] Failed to connect:', error);
@@ -160,6 +193,10 @@ export const unsubscribeFromBookingLocation = (bookingId: string): void => {
 export const addSocketListener = (event: string, callback: EventCallback): void => {
     if (!eventListeners.has(event)) {
         eventListeners.set(event, new Set());
+        // Dynamically bind to socket if already connected and not predefined
+        if (socket?.connected && !PREDEFINED_EVENTS.includes(event)) {
+            socket.on(event, (data) => notifyListeners(event, data));
+        }
     }
     eventListeners.get(event)!.add(callback);
 };
