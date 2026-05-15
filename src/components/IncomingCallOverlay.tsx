@@ -9,18 +9,19 @@ import {
     Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
 import { COLORS } from '../theme';
 import { useSocketEvent } from '../hooks/useSocket';
 import { IncomingCallData } from '../hooks/useCall';
 import InCallManager from 'react-native-incall-manager';
+import { navigate } from '../utils/navigationRef';
+import { Audio } from 'expo-av';
+import { Alert } from 'react-native';
 
 const { width } = Dimensions.get('window');
 
 const IncomingCallOverlay = () => {
-    const navigation = useNavigation<any>();
     const [incomingCall, setIncomingCall] = useState<IncomingCallData | null>(null);
-    const translateY = new Animated.Value(-200);
+    const translateY = useRef(new Animated.Value(-200)).current;
 
     // Listen for incoming calls globally
     const { onEvent: onIncomingCall } = useSocketEvent<IncomingCallData>('call:incoming');
@@ -30,13 +31,6 @@ const IncomingCallOverlay = () => {
     useEffect(() => {
         onIncomingCall((data) => {
             setIncomingCall(data);
-            // Play ringtone and vibrate
-            InCallManager?.startRingtone('_DEFAULT_', [1000, 500], 'playback', 30);
-            Animated.spring(translateY, {
-                toValue: 0,
-                useNativeDriver: true,
-                bounciness: 12,
-            }).start();
         });
 
         const closeOverlay = () => {
@@ -52,18 +46,46 @@ const IncomingCallOverlay = () => {
         onCallEnded(closeOverlay);
     }, [onIncomingCall, onCallMissed, onCallEnded, translateY]);
 
+    useEffect(() => {
+        if (incomingCall) {
+            // Play ringtone and vibrate
+            InCallManager?.startRingtone('_DEFAULT_', [1000, 500], 'playback', 30);
+            Animated.spring(translateY, {
+                toValue: 0,
+                useNativeDriver: true,
+                bounciness: 12,
+            }).start();
+        }
+    }, [incomingCall, translateY]);
+
     if (!incomingCall) return null;
 
-    const handleAccept = () => {
+    const handleAccept = async () => {
+        // Check mic permission first
+        const { status } = await Audio.requestPermissionsAsync();
+        if (status !== 'granted') {
+            InCallManager?.stopRingtone();
+            Alert.alert('Permission Denied', 'Microphone permission is required to answer calls.');
+            handleReject();
+            return;
+        }
+
         // Stop ringtone before navigating
         InCallManager?.stopRingtone();
+        
         // Navigate to Call screen and pass the incoming call data for answering
-        navigation.navigate('VoiceCall', {
-            bookingId: incomingCall.bookingId,
-            buddyName: incomingCall.caller.name,
-            isIncoming: true,
-            callId: incomingCall.callId,
-            _incomingCallData: incomingCall,
+        navigate('Main', {
+            screen: 'BookingsTab',
+            params: {
+                screen: 'VoiceCall',
+                params: {
+                    bookingId: incomingCall.bookingId,
+                    buddyName: incomingCall.caller.name,
+                    isIncoming: true,
+                    callId: incomingCall.callId,
+                    _incomingCallData: incomingCall,
+                }
+            }
         });
         setIncomingCall(null);
     };

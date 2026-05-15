@@ -177,6 +177,29 @@ const BookingDetailScreen: React.FC = () => {
     
     const canReview = booking.status === 'COMPLETED' && !booking.review;
     const buddy = booking.buddy || booking.assignments?.[0]?.buddy;
+
+    const canCall = ['ACCEPTED', 'ON_WAY', 'ARRIVED', 'IN_PROGRESS'].includes(booking.status);
+    let canChat = ['PENDING', 'ASSIGNED', 'ACCEPTED', 'ON_WAY', 'ARRIVED', 'IN_PROGRESS', 'COMPLETED'].includes(booking.status);
+    if (booking.status === 'COMPLETED' && booking.completedAt) {
+        const hoursSince = dayjs().diff(dayjs(booking.completedAt), 'hour');
+        if (hoursSince > 24) canChat = false;
+    }
+
+    const handleCallBuddy = () => {
+        if (!canCall) {
+            Alert.alert('Call Unavailable', 'Calling is only available while the booking is active.');
+            return;
+        }
+        navigation.navigate('VoiceCall', { bookingId, buddyName: buddy.user?.name || buddy.name });
+    };
+
+    const handleChatBuddy = () => {
+        if (!canChat) {
+            Alert.alert('Chat Unavailable', 'Chat is only available for 24 hours after completion.');
+            return;
+        }
+        navigation.navigate('Chat', { bookingId, buddyName: buddy.user?.name || buddy.name });
+    };
     
     let metadataItems = [];
     try {
@@ -326,14 +349,14 @@ const BookingDetailScreen: React.FC = () => {
                                     </View>
                                     <View style={styles.actionButtonsRow}>
                                         <TouchableOpacity
-                                            style={styles.chatIconButton}
-                                            onPress={() => navigation.navigate('VoiceCall', { bookingId, buddyName: buddy.user?.name || buddy.name })}
+                                            style={[styles.chatIconButton, !canCall && { opacity: 0.5 }]}
+                                            onPress={handleCallBuddy}
                                         >
                                             <Ionicons name="call" size={20} color={COLORS.primary} />
                                         </TouchableOpacity>
                                         <TouchableOpacity
-                                            style={styles.chatIconButton}
-                                            onPress={() => navigation.navigate('Chat', { bookingId, buddyName: buddy.user?.name || buddy.name })}
+                                            style={[styles.chatIconButton, !canChat && { opacity: 0.5 }]}
+                                            onPress={handleChatBuddy}
                                         >
                                             <Ionicons name="chatbubbles" size={20} color={COLORS.primary} />
                                         </TouchableOpacity>

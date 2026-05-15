@@ -20,6 +20,7 @@ import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { OfflineBanner } from './src/components/OfflineBanner';
 import IncomingCallOverlay from './src/components/IncomingCallOverlay';
 import { injectStore } from './src/api/client';
+import { navigationRef } from './src/utils/navigationRef';
 
 // Inject the Redux store into the Axios interceptor so it can dispatch logout() on auth failure
 injectStore(store);
@@ -134,7 +135,7 @@ const AppContent: React.FC = () => {
   return (
     <SafeAreaProvider>
       <ErrorBoundary>
-        <NavigationContainer>
+        <NavigationContainer ref={navigationRef}>
           <StatusBar style="dark" />
           <OfflineBanner />
           <IncomingCallOverlay />

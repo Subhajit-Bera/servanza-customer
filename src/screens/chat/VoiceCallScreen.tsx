@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
     View,
     Text,
@@ -42,18 +42,20 @@ const VoiceCallScreen = () => {
         toggleSpeaker,
     } = useCall({ bookingId, currentUserId });
 
+    const hasAnsweredRef = useRef(false);
+
     // Initiate or answer call on mount
     useEffect(() => {
-        if (callState === 'idle') {
-            if (!isIncoming) {
+        if (!isIncoming) {
+            if (callState === 'idle') {
                 initiateCall();
             }
-        }
-        if (isIncoming && callState === 'ringing') {
-            // The IncomingCallOverlay already set the state to ringing;
-            // now the user accepted, so answer the call
+        } else {
+            // The IncomingCallOverlay routes here after the user accepts.
+            // We shouldn't wait for callState === 'ringing' because this screen's local hook starts as 'idle'.
             const incomingData = route.params as any;
-            if (incomingData._incomingCallData) {
+            if (incomingData._incomingCallData && !hasAnsweredRef.current) {
+                hasAnsweredRef.current = true;
                 answerCall(incomingData._incomingCallData);
             }
         }
@@ -61,14 +63,10 @@ const VoiceCallScreen = () => {
 
     // Handle end/disconnect
     useEffect(() => {
-        if (callState === 'ended' || callState === 'idle') {
-            // Only navigate back if we actually initiated a call and it ended
-            // If it's idle right at mount, we don't want to immediately pop
-            if (!isIncoming && callState === 'ended') {
-                navigation.goBack();
-            }
+        if (callState === 'ended') {
+            navigation.goBack();
         }
-    }, [callState, isIncoming, navigation]);
+    }, [callState, navigation]);
 
     const formatDuration = (seconds: number) => {
         const mins = Math.floor(seconds / 60);

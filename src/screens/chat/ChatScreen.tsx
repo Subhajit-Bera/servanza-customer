@@ -116,8 +116,10 @@ const ChatScreen = () => {
         );
     };
 
+    const Container = Platform.OS === 'ios' ? KeyboardAvoidingView : (View as any);
+
     return (
-        <KeyboardAvoidingView 
+        <Container 
             style={styles.container}
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
@@ -148,7 +150,9 @@ const ChatScreen = () => {
                     data={messages}
                     keyExtractor={(item) => item.id}
                     renderItem={renderMessage}
+                    style={{ flex: 1 }}
                     contentContainerStyle={styles.listContent}
+                    keyboardShouldPersistTaps="handled"
                     onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
                     onLayout={() => flatListRef.current?.scrollToEnd({ animated: false })}
                 />
@@ -179,7 +183,7 @@ const ChatScreen = () => {
                         <Ionicons name="send" size={20} color="white" />
                     </TouchableOpacity>
                 </View>
-        </KeyboardAvoidingView>
+        </Container>
     );
 };
 
@@ -225,6 +229,7 @@ const styles = StyleSheet.create({
     listContent: {
         padding: 15,
         paddingBottom: 10,
+        flexGrow: 1,
     },
     systemMessageContainer: {
         alignItems: 'center',
