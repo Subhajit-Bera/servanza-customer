@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
     View,
     Text,
@@ -7,6 +7,9 @@ import {
     Modal,
     Animated,
     Dimensions,
+    Alert,
+    Platform,
+    PermissionsAndroid,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../theme';
@@ -14,8 +17,6 @@ import { useSocketEvent } from '../hooks/useSocket';
 import { IncomingCallData } from '../hooks/useCall';
 import InCallManager from 'react-native-incall-manager';
 import { navigate } from '../utils/navigationRef';
-import { Audio } from 'expo-av';
-import { Alert } from 'react-native';
 
 const { width } = Dimensions.get('window');
 
@@ -61,13 +62,23 @@ const IncomingCallOverlay = () => {
     if (!incomingCall) return null;
 
     const handleAccept = async () => {
-        // Check mic permission first
-        const { status } = await Audio.requestPermissionsAsync();
-        if (status !== 'granted') {
-            InCallManager?.stopRingtone();
-            Alert.alert('Permission Denied', 'Microphone permission is required to answer calls.');
-            handleReject();
-            return;
+        // Check mic permission on Android (iOS handles via Info.plist)
+        if (Platform.OS === 'android') {
+            const granted = await PermissionsAndroid.request(
+                PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
+                {
+                    title: 'Microphone Permission',
+                    message: 'Servanza needs microphone access to make voice calls.',
+                    buttonPositive: 'Allow',
+                    buttonNegative: 'Deny',
+                },
+            );
+            if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
+                InCallManager?.stopRingtone();
+                Alert.alert('Permission Denied', 'Microphone permission is required to answer calls.');
+                handleReject();
+                return;
+            }
         }
 
         // Stop ringtone before navigating
