@@ -178,16 +178,28 @@ const BookingDetailScreen: React.FC = () => {
     const canReview = booking.status === 'COMPLETED' && !booking.review;
     const buddy = booking.buddy || booking.assignments?.[0]?.buddy;
 
-    const canCall = ['ACCEPTED', 'ON_WAY', 'ARRIVED', 'IN_PROGRESS'].includes(booking.status);
-    let canChat = ['PENDING', 'ASSIGNED', 'ACCEPTED', 'ON_WAY', 'ARRIVED', 'IN_PROGRESS', 'COMPLETED'].includes(booking.status);
+    let canCall = ['ASSIGNED', 'ACCEPTED', 'ON_WAY', 'ARRIVED', 'IN_PROGRESS', 'COMPLETED'].includes(booking.status);
+    let canChat = canCall;
+
     if (booking.status === 'COMPLETED' && booking.completedAt) {
         const hoursSince = dayjs().diff(dayjs(booking.completedAt), 'hour');
-        if (hoursSince > 24) canChat = false;
+        if (hoursSince > 24) {
+            canCall = false;
+            canChat = false;
+        }
     }
 
     const handleCallBuddy = () => {
         if (!canCall) {
-            Alert.alert('Call Unavailable', 'Calling is only available while the booking is active.');
+            if (booking.status === 'PENDING') {
+                Alert.alert('Call Unavailable', 'You will be able to call once a buddy is assigned.');
+            } else if (booking.status === 'COMPLETED') {
+                Alert.alert('Call Unavailable', 'Calling is only available for 24 hours after completion.');
+            } else if (booking.status === 'CANCELLED') {
+                Alert.alert('Call Unavailable', 'Calling is not available for cancelled bookings.');
+            } else {
+                Alert.alert('Call Unavailable', 'Calling is not available for this booking.');
+            }
             return;
         }
         navigation.navigate('VoiceCall', { bookingId, buddyName: buddy.user?.name || buddy.name });
@@ -195,7 +207,15 @@ const BookingDetailScreen: React.FC = () => {
 
     const handleChatBuddy = () => {
         if (!canChat) {
-            Alert.alert('Chat Unavailable', 'Chat is only available for 24 hours after completion.');
+            if (booking.status === 'PENDING') {
+                Alert.alert('Chat Unavailable', 'You will be able to chat once a buddy is assigned.');
+            } else if (booking.status === 'COMPLETED') {
+                Alert.alert('Chat Unavailable', 'Chat is only available for 24 hours after completion.');
+            } else if (booking.status === 'CANCELLED') {
+                Alert.alert('Chat Unavailable', 'Chat is not available for cancelled bookings.');
+            } else {
+                Alert.alert('Chat Unavailable', 'Chat is not available for this booking.');
+            }
             return;
         }
         navigation.navigate('Chat', { bookingId, buddyName: buddy.user?.name || buddy.name });

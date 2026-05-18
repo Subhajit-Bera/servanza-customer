@@ -9,6 +9,7 @@ import {
     ActivityIndicator,
     Image,
     Linking,
+    Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -115,6 +116,35 @@ const MyBookingsScreen: React.FC = () => {
 
         const buddy = bookings[0]?.buddy || bookings[0]?.assignments?.[0]?.buddy;
 
+        let canCall = false;
+        if (bookings[0]) {
+            const booking = bookings[0];
+            canCall = ['ASSIGNED', 'ACCEPTED', 'ON_WAY', 'ARRIVED', 'IN_PROGRESS', 'COMPLETED'].includes(booking.status);
+            if (booking.status === 'COMPLETED' && booking.completedAt) {
+                const hoursSince = dayjs().diff(dayjs(booking.completedAt), 'hour');
+                if (hoursSince > 24) {
+                    canCall = false;
+                }
+            }
+        }
+
+        const handleCallPress = () => {
+            if (!canCall) {
+                const booking = bookings[0];
+                if (!booking || booking.status === 'PENDING') {
+                    Alert.alert('Call Unavailable', 'You will be able to call once a buddy is assigned.');
+                } else if (booking.status === 'COMPLETED') {
+                    Alert.alert('Call Unavailable', 'Calling is only available for 24 hours after completion.');
+                } else if (booking.status === 'CANCELLED') {
+                    Alert.alert('Call Unavailable', 'Calling is not available for cancelled bookings.');
+                } else {
+                    Alert.alert('Call Unavailable', 'Calling is not available for this booking.');
+                }
+                return;
+            }
+            navigation.navigate('VoiceCall', { bookingId: bookings[0]?.id, buddyName: buddy.user?.name || buddy.name });
+        };
+
         return (
             <TouchableOpacity
                 style={styles.bookingCard}
@@ -185,8 +215,9 @@ const MyBookingsScreen: React.FC = () => {
                             <Text style={styles.buddyStatus}>Assigned Buddy</Text>
                         </View>
                         <TouchableOpacity
-                            style={styles.callButton}
-                            onPress={() => navigation.navigate('VoiceCall', { bookingId: bookings[0]?.id, buddyName: buddy.user?.name || buddy.name })}
+                            style={[styles.callButton, !canCall && { backgroundColor: COLORS.mediumGray, opacity: 0.7 }]}
+                            onPress={handleCallPress}
+                            activeOpacity={0.7}
                         >
                             <Ionicons name="call" size={18} color={COLORS.white} />
                         </TouchableOpacity>
