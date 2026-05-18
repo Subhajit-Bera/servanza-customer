@@ -178,20 +178,35 @@ const BookingDetailScreen: React.FC = () => {
     const canReview = booking.status === 'COMPLETED' && !booking.review;
     const buddy = booking.buddy || booking.assignments?.[0]?.buddy;
 
-    let canCall = ['ASSIGNED', 'ACCEPTED', 'ON_WAY', 'ARRIVED', 'IN_PROGRESS', 'COMPLETED'].includes(booking.status);
-    let canChat = canCall;
+    let canCall = false;
+    let canChat = false;
+    let chatReason = '';
+    let callReason = '';
 
-    if (booking.status === 'COMPLETED' && booking.completedAt) {
-        const hoursSince = dayjs().diff(dayjs(booking.completedAt), 'hour');
-        if (hoursSince > 24) {
-            canCall = false;
-            canChat = false;
+    if ((booking as any)?.communicationAccess) {
+        canCall = (booking as any).communicationAccess.canCall;
+        canChat = (booking as any).communicationAccess.canChat;
+        chatReason = (booking as any).communicationAccess.chatReason || '';
+        callReason = (booking as any).communicationAccess.callReason || '';
+    } else {
+        // Fallback if backend doesn't send it for some reason
+        canCall = ['ASSIGNED', 'ACCEPTED', 'ON_WAY', 'ARRIVED', 'IN_PROGRESS', 'COMPLETED'].includes(booking.status);
+        canChat = canCall;
+
+        if (booking.status === 'COMPLETED' && booking.completedAt) {
+            const hoursSince = dayjs().diff(dayjs(booking.completedAt), 'hour');
+            if (hoursSince > 24) {
+                canCall = false;
+                canChat = false;
+            }
         }
     }
 
     const handleCallBuddy = () => {
         if (!canCall) {
-            if (booking.status === 'PENDING') {
+            if (callReason) {
+                Alert.alert('Call Unavailable', callReason);
+            } else if (booking.status === 'PENDING') {
                 Alert.alert('Call Unavailable', 'You will be able to call once a buddy is assigned.');
             } else if (booking.status === 'COMPLETED') {
                 Alert.alert('Call Unavailable', 'Calling is only available for 24 hours after completion.');
@@ -207,7 +222,9 @@ const BookingDetailScreen: React.FC = () => {
 
     const handleChatBuddy = () => {
         if (!canChat) {
-            if (booking.status === 'PENDING') {
+            if (chatReason) {
+                Alert.alert('Chat Unavailable', chatReason);
+            } else if (booking.status === 'PENDING') {
                 Alert.alert('Chat Unavailable', 'You will be able to chat once a buddy is assigned.');
             } else if (booking.status === 'COMPLETED') {
                 Alert.alert('Chat Unavailable', 'Chat is only available for 24 hours after completion.');

@@ -117,13 +117,20 @@ const MyBookingsScreen: React.FC = () => {
         const buddy = bookings[0]?.buddy || bookings[0]?.assignments?.[0]?.buddy;
 
         let canCall = false;
+        let callReason = '';
+
         if (bookings[0]) {
             const booking = bookings[0];
-            canCall = ['ASSIGNED', 'ACCEPTED', 'ON_WAY', 'ARRIVED', 'IN_PROGRESS', 'COMPLETED'].includes(booking.status);
-            if (booking.status === 'COMPLETED' && booking.completedAt) {
-                const hoursSince = dayjs().diff(dayjs(booking.completedAt), 'hour');
-                if (hoursSince > 24) {
-                    canCall = false;
+            if (booking.communicationAccess) {
+                canCall = booking.communicationAccess.canCall;
+                callReason = booking.communicationAccess.callReason || '';
+            } else {
+                canCall = ['ASSIGNED', 'ACCEPTED', 'ON_WAY', 'ARRIVED', 'IN_PROGRESS', 'COMPLETED'].includes(booking.status);
+                if (booking.status === 'COMPLETED' && booking.completedAt) {
+                    const hoursSince = dayjs().diff(dayjs(booking.completedAt), 'hour');
+                    if (hoursSince > 24) {
+                        canCall = false;
+                    }
                 }
             }
         }
@@ -131,7 +138,9 @@ const MyBookingsScreen: React.FC = () => {
         const handleCallPress = () => {
             if (!canCall) {
                 const booking = bookings[0];
-                if (!booking || booking.status === 'PENDING') {
+                if (callReason) {
+                    Alert.alert('Call Unavailable', callReason);
+                } else if (!booking || booking.status === 'PENDING') {
                     Alert.alert('Call Unavailable', 'You will be able to call once a buddy is assigned.');
                 } else if (booking.status === 'COMPLETED') {
                     Alert.alert('Call Unavailable', 'Calling is only available for 24 hours after completion.');

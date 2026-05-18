@@ -213,6 +213,10 @@ export const bookingApi = {
     // Retry broadcast for finding buddy
     retryBroadcast: (id: string) =>
         apiClient.post(`/bookings/${id}/retry-broadcast`),
+        
+    // Communication Access
+    getCommunicationAccess: (id: string) =>
+        apiClient.get(`/bookings/${id}/communication-access`),
 };
 
 // Payment API
