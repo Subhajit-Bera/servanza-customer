@@ -57,7 +57,8 @@ const BookingDetailScreen: React.FC = () => {
     };
 
     const handleReview = () => {
-        navigation.navigate('Review', { bookingId });
+        const existingReview = booking?.review ?? (booking as any)?.reviews?.[0] ?? null;
+        navigation.navigate('Review', { bookingId, existingReview: existingReview ?? undefined });
     };
 
     const handleCancel = () => {
@@ -175,7 +176,18 @@ const BookingDetailScreen: React.FC = () => {
         }
     }
     
-    const canReview = booking.status === 'COMPLETED' && !booking.review;
+    // Normalize review from backend (sends reviews[] array, not review object)
+    const existingReview = booking.review ?? booking.reviews?.[0] ?? null;
+    const hasRating = existingReview?.rating !== null && existingReview?.rating !== undefined;
+    const hasComment = !!existingReview?.comment;
+    const canReview = booking.status === 'COMPLETED' && !(hasRating && hasComment);
+    
+    // Smart button label
+    let reviewButtonLabel = 'Rate & Review';
+    if (existingReview) {
+        if (hasRating && !hasComment) reviewButtonLabel = 'Write a Review';
+        else if (!hasRating && hasComment) reviewButtonLabel = 'Rate Service';
+    }
     const buddy = booking.buddy || booking.assignments?.[0]?.buddy;
 
     let canCall = false;
@@ -499,7 +511,7 @@ const BookingDetailScreen: React.FC = () => {
                             onPress={handleReview}
                         >
                             <Ionicons name="star" size={20} color={COLORS.white} />
-                            <Text style={styles.reviewButtonText}>Rate & Review</Text>
+                            <Text style={styles.reviewButtonText}>{reviewButtonLabel}</Text>
                         </TouchableOpacity>
                     )}
                 </View>

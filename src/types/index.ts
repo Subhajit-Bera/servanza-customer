@@ -67,6 +67,7 @@ export interface ServiceTypeVariant {
 export interface ServiceMetadata {
     whatsIncluded?: string[];
     whatsNotIncluded?: string[];
+    variants?: Record<string, ServiceTypeVariant>;
 }
 
 export interface ServiceDescription {
@@ -155,6 +156,7 @@ export interface Booking {
     address?: Address;
     buddy?: BuddyInfo;
     review?: Review;
+    reviews?: Review[];
     assignments?: any[];
     metadata?: any;
 }
@@ -179,8 +181,8 @@ export interface Review {
     bookingId: string;
     userId: string;
     buddyId: string;
-    rating: number;
-    comment?: string;
+    rating: number | null;
+    comment?: string | null;
     createdAt: string;
     updatedAt?: string;
     user?: {

@@ -62,7 +62,7 @@ export type BookingsStackParamList = {
     MyBookings: undefined;
     BookingDetail: { bookingId: string };
     TrackBuddy: { bookingId: string };
-    Review: { bookingId: string };
+    Review: { bookingId: string; existingReview?: any };
     Chat: { bookingId: string; buddyName: string };
     VoiceCall: { bookingId: string; buddyName: string; isIncoming?: boolean; callId?: string };
 };

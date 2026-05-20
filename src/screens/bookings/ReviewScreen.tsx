@@ -14,7 +14,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { COLORS, TYPOGRAPHY, SHADOWS, SPACING, BORDER_RADIUS } from '../../theme';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
-import { submitReview } from '../../store/slices/bookingsSlice';
+import { submitReview, fetchBookingById } from '../../store/slices/bookingsSlice';
+import { reviewApi } from '../../api/client';
 import type { BookingsStackParamList } from '../../navigation/MainNavigator';
 
 type ReviewRouteProp = RouteProp<BookingsStackParamList, 'Review'>;
@@ -24,30 +25,66 @@ const ReviewScreen: React.FC = () => {
     const route = useRoute<ReviewRouteProp>();
     const dispatch = useAppDispatch();
 
-    const { bookingId } = route.params;
+    const { bookingId, existingReview } = route.params;
     const { loading } = useAppSelector((state) => state.bookings);
 
-    const [rating, setRating] = useState(5);
-    const [comment, setComment] = useState('');
+    // Determine mode based on existing review
+    const isUpdate = !!existingReview;
+    const hasExistingRating = existingReview?.rating !== null && existingReview?.rating !== undefined;
+    const hasExistingComment = !!existingReview?.comment;
+
+    const [rating, setRating] = useState(hasExistingRating ? existingReview.rating : 0);
+    const [comment, setComment] = useState(hasExistingComment ? existingReview.comment : '');
+    const [submitting, setSubmitting] = useState(false);
+
+    // Dynamic header and button labels
+    let headerTitle = 'Rate & Review';
+    let submitLabel = 'Submit Review';
+    if (isUpdate) {
+        if (hasExistingRating && !hasExistingComment) {
+            headerTitle = 'Write a Review';
+            submitLabel = 'Submit Review';
+        } else if (!hasExistingRating && hasExistingComment) {
+            headerTitle = 'Rate Service';
+            submitLabel = 'Submit Rating';
+        }
+    }
 
     const handleSubmit = async () => {
-        if (rating < 1) {
-            Alert.alert('Rating Required', 'Please select a rating');
+        // Validate: at least one of rating or comment must be provided
+        if (rating < 1 && (!comment.trim())) {
+            Alert.alert('Required', 'Please provide a rating or a review comment.');
             return;
         }
 
+        setSubmitting(true);
         try {
-            await dispatch(submitReview({
-                bookingId,
-                rating,
-                comment: comment.trim() || undefined,
-            })).unwrap();
+            if (isUpdate && existingReview?.id) {
+                // Use PUT /reviews/:id for updating existing review
+                const updateData: { rating?: number; comment?: string } = {};
+                if (rating >= 1) updateData.rating = rating;
+                if (comment.trim()) updateData.comment = comment.trim();
+                await reviewApi.updateReview(existingReview.id, updateData);
+            } else {
+                // Use POST /bookings/:id/review for new review (upsert)
+                await dispatch(submitReview({
+                    bookingId,
+                    rating: rating >= 1 ? rating : undefined,
+                    comment: comment.trim() || undefined,
+                })).unwrap();
+            }
+
+            // Re-fetch the booking to update the review state in Redux
+            // This ensures BookingDetailScreen reflects the change immediately
+            dispatch(fetchBookingById(bookingId));
 
             Alert.alert('Thank You!', 'Your review has been submitted successfully', [
                 { text: 'OK', onPress: () => navigation.goBack() }
             ]);
         } catch (error: any) {
-            Alert.alert('Error', error.message || 'Failed to submit review');
+            Alert.alert('Error', error?.response?.data?.message || error.message || 'Failed to submit review');
+        } finally {
+            setSubmitting(false);
         }
     };
 
@@ -61,7 +98,7 @@ const ReviewScreen: React.FC = () => {
                 >
                     <Ionicons name="arrow-back" size={24} color={COLORS.charcoal} />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>Rate & Review</Text>
+                <Text style={styles.headerTitle}>{headerTitle}</Text>
                 <View style={styles.headerRight} />
             </View>
 
@@ -81,19 +118,21 @@ const ReviewScreen: React.FC = () => {
                                 style={styles.starButton}
                             >
                                 <Ionicons
-                                    name={star <= rating ? 'star' : 'star-outline'}
+                                    name={rating > 0 && star <= rating ? 'star' : 'star-outline'}
                                     size={48}
-                                    color={star <= rating ? COLORS.warning : COLORS.lightGray}
+                                    color={rating > 0 && star <= rating ? COLORS.warning : COLORS.lightGray}
                                 />
                             </TouchableOpacity>
                         ))}
                     </View>
-                    <Text style={styles.ratingLabel}>
-                        {rating === 5 ? 'Excellent!' :
-                            rating === 4 ? 'Very Good' :
-                                rating === 3 ? 'Good' :
-                                    rating === 2 ? 'Fair' : 'Poor'}
-                    </Text>
+                    {rating > 0 && (
+                        <Text style={styles.ratingLabel}>
+                            {rating === 5 ? 'Excellent!' :
+                                rating === 4 ? 'Very Good' :
+                                    rating === 3 ? 'Good' :
+                                        rating === 2 ? 'Fair' : 'Poor'}
+                        </Text>
+                    )}
                 </View>
 
                 {/* Comment Section */}
@@ -126,7 +165,7 @@ const ReviewScreen: React.FC = () => {
                                     if (comment.includes(tag)) {
                                         setComment(comment.replace(tag + ' ', ''));
                                     } else {
-                                        setComment((prev) => (prev ? prev + ' ' : '') + tag + ' ');
+                                        setComment((prev: string) => (prev ? prev + ' ' : '') + tag + ' ');
                                     }
                                 }}
                             >
@@ -145,15 +184,15 @@ const ReviewScreen: React.FC = () => {
             {/* Submit Button */}
             <View style={styles.bottomBar}>
                 <TouchableOpacity
-                    style={styles.submitButton}
+                    style={[styles.submitButton, submitting && { opacity: 0.7 }]}
                     onPress={handleSubmit}
-                    disabled={loading}
+                    disabled={loading || submitting}
                     activeOpacity={0.8}
                 >
-                    {loading ? (
+                    {(loading || submitting) ? (
                         <ActivityIndicator color={COLORS.white} />
                     ) : (
-                        <Text style={styles.submitButtonText}>Submit Review</Text>
+                        <Text style={styles.submitButtonText}>{submitLabel}</Text>
                     )}
                 </TouchableOpacity>
             </View>

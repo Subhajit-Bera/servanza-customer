@@ -78,7 +78,7 @@ export const cancelBooking = createAsyncThunk(
 // Submit review
 export const submitReview = createAsyncThunk(
     'bookings/submitReview',
-    async ({ bookingId, rating, comment }: { bookingId: string; rating: number; comment?: string }, { rejectWithValue }) => {
+    async ({ bookingId, rating, comment }: { bookingId: string; rating?: number; comment?: string }, { rejectWithValue }) => {
         try {
             const response = await bookingApi.addReview(bookingId, { rating, comment });
             return { bookingId, review: response.data.data || response.data };
@@ -193,6 +193,24 @@ const bookingsSlice = createSlice({
                 }
                 if (state.selectedBooking?.id === action.payload.id) {
                     state.selectedBooking = action.payload;
+                }
+            })
+
+            // Submit Review — update booking review state
+            .addCase(submitReview.fulfilled, (state, action) => {
+                const { bookingId, review } = action.payload;
+                // Update selectedBooking's review
+                if (state.selectedBooking?.id === bookingId) {
+                    state.selectedBooking.review = review;
+                    if (!state.selectedBooking.reviews) {
+                        state.selectedBooking.reviews = [];
+                    }
+                    state.selectedBooking.reviews = [review];
+                }
+                // Update in bookings list
+                const idx = state.bookings.findIndex(b => b.id === bookingId);
+                if (idx !== -1) {
+                    state.bookings[idx].review = review;
                 }
             });
     },

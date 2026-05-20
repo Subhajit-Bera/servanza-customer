@@ -49,7 +49,7 @@ const AddAddressScreen: React.FC = () => {
     const navigation = useNavigation();
     const route = useRoute<RouteProp<{ params: RouteParams }, 'params'>>();
     const dispatch = useAppDispatch();
-    const { isLoading } = useAppSelector((state) => state.auth);
+    const { isLoading, addresses } = useAppSelector((state) => state.auth);
 
     const mapRef = useRef<MapView>(null);
     const editingAddress = route.params?.address;
@@ -69,6 +69,17 @@ const AddAddressScreen: React.FC = () => {
     const [pincode, setPincode] = useState(editingAddress?.pincode || '');
     const [isDefault, setIsDefault] = useState(editingAddress?.isDefault || false);
     const [isLocating, setIsLocating] = useState(false);
+
+    // Guard: max 5 addresses (skip if editing an existing one)
+    useEffect(() => {
+        if (!editingAddress && addresses && addresses.length >= 5) {
+            Alert.alert(
+                'Address Limit Reached',
+                'You can have a maximum of 5 addresses. Please edit or delete an existing address.',
+                [{ text: 'OK', onPress: () => navigation.goBack() }]
+            );
+        }
+    }, []);
 
     useEffect(() => {
         if (!editingAddress) {

@@ -799,9 +799,15 @@ const ServiceDetailsScreen: React.FC = () => {
     const [reviewsLoading, setReviewsLoading] = useState(false);
     const [showDescription, setShowDescription] = useState(false);
     const [activeImage, setActiveImage] = useState(0);
+    const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
     const images = service?.imageUrls?.length 
         ? service.imageUrls 
         : (service?.imageUrl ? [service.imageUrl] : []);
+
+    // Variants
+    const variants = (metadata as any)?.variants as Record<string, any> | undefined;
+    const variantEntries = variants ? Object.entries(variants) : [];
+    const selectedVariant = selectedVariantId && variants ? variants[selectedVariantId] : null;
 
     useEffect(() => {
         dispatch(fetchServiceById(serviceId));
@@ -830,13 +836,21 @@ const ServiceDetailsScreen: React.FC = () => {
 
     const handleAddToCart = () => {
         if (service) {
-            dispatch(addToCart({ service, quantity: 1 }));
+            dispatch(addToCart({ 
+                service, 
+                quantity: 1, 
+                selectedOptions: selectedVariantId ? { variantId: selectedVariantId } : undefined 
+            }));
         }
     };
 
     const handleBookNow = () => {
         if (service) {
-            dispatch(addToCart({ service, quantity: 1 }));
+            dispatch(addToCart({ 
+                service, 
+                quantity: 1, 
+                selectedOptions: selectedVariantId ? { variantId: selectedVariantId } : undefined 
+            }));
             navigation.getParent()?.navigate('CartTab');
         }
     };
@@ -864,9 +878,9 @@ const ServiceDetailsScreen: React.FC = () => {
         }
     };
 
-    // Computed values
-    const displayPrice = service?.basePrice || 0;
-    const displayDuration = service?.durationMins || 0;
+    // Computed values (variant-aware)
+    const displayPrice = selectedVariant?.price ?? service?.basePrice ?? 0;
+    const displayDuration = selectedVariant?.durationMins ?? service?.durationMins ?? 0;
     
     // Parse description object
     const descObj = service?.description || {};
@@ -1020,6 +1034,49 @@ const ServiceDetailsScreen: React.FC = () => {
                                 <Text style={styles.durationText}>{displayDuration} mins</Text>
                             </View>
                         </View>
+
+                        {/* Variant Selector */}
+                        {variantEntries.length > 0 && (
+                            <View style={{ marginTop: SPACING.md }}>
+                                <Text style={{ fontSize: TYPOGRAPHY.fontSize.sm, fontWeight: TYPOGRAPHY.fontWeight.bold as any, color: COLORS.textSecondary, marginBottom: SPACING.sm }}>Select Duration</Text>
+                                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: SPACING.sm }}>
+                                    {variantEntries.map(([vId, variant]: [string, any]) => {
+                                        const isSelected = selectedVariantId === vId;
+                                        return (
+                                            <TouchableOpacity
+                                                key={vId}
+                                                onPress={() => setSelectedVariantId(isSelected ? null : vId)}
+                                                style={{
+                                                    paddingHorizontal: 16,
+                                                    paddingVertical: 10,
+                                                    backgroundColor: isSelected ? COLORS.primary : COLORS.white,
+                                                    borderRadius: BORDER_RADIUS.lg,
+                                                    borderWidth: 1,
+                                                    borderColor: isSelected ? COLORS.primary : COLORS.border,
+                                                    minWidth: 90,
+                                                    alignItems: 'center',
+                                                }}
+                                            >
+                                                <Text style={{
+                                                    fontSize: TYPOGRAPHY.fontSize.sm,
+                                                    fontWeight: TYPOGRAPHY.fontWeight.bold as any,
+                                                    color: isSelected ? COLORS.white : COLORS.textPrimary,
+                                                }}>
+                                                    {variant.label || vId}
+                                                </Text>
+                                                <Text style={{
+                                                    fontSize: TYPOGRAPHY.fontSize.xs,
+                                                    color: isSelected ? 'rgba(255,255,255,0.8)' : COLORS.textSecondary,
+                                                    marginTop: 2,
+                                                }}>
+                                                    {variant.durationMins} mins • {formatCurrency(variant.price)}
+                                                </Text>
+                                            </TouchableOpacity>
+                                        );
+                                    })}
+                                </ScrollView>
+                            </View>
+                        )}
                     </View>
 
                     <View style={styles.divider} />
@@ -1156,12 +1213,14 @@ const ServiceDetailsScreen: React.FC = () => {
                                                         </Text>
                                                     </View>
                                                 </View>
+                                                {item.rating !== null && item.rating !== undefined && (
                                                 <View style={styles.ratingBadge}>
                                                     <Text style={styles.ratingBadgeText}>
                                                         {item.rating.toFixed(1)}
                                                     </Text>
                                                     <Ionicons name="star" size={10} color={COLORS.white} />
                                                 </View>
+                                                )}
                                             </View>
                                             {item.comment && (
                                                 <Text style={styles.reviewText} numberOfLines={3}>

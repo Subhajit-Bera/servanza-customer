@@ -34,10 +34,20 @@ const initialState: ExtendedCartState = {
     couponError: null,
 };
 
-// Helper to calculate totals (with optional coupon discount)
+// Helper to resolve item price (variant-aware)
+const getItemPrice = (item: CartItem): number => {
+    const variantId = item.selectedOptions?.variantId;
+    if (variantId) {
+        const metadata = item.service.metadata as any;
+        const variant = metadata?.variants?.[variantId];
+        if (variant?.price !== undefined) return variant.price;
+    }
+    return item.service.basePrice;
+};
+
 const calculateTotals = (items: CartItem[], appliedCoupon: ExtendedCartState['appliedCoupon'] = null) => {
     const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
-    const subtotal = items.reduce((sum, item) => sum + (item.service.basePrice * item.quantity), 0);
+    const subtotal = items.reduce((sum, item) => sum + (getItemPrice(item) * item.quantity), 0);
 
     // Calculate coupon discount
     let discountAmount = 0;
@@ -85,14 +95,21 @@ const cartSlice = createSlice({
         },
 
         // Add item to cart
-        addToCart: (state, action: PayloadAction<{ service: Service; quantity?: number; options?: Record<string, any> }>) => {
-            const { service, quantity = 1, options } = action.payload;
-            const existingIndex = state.items.findIndex(item => item.service.id === service.id);
+        addToCart: (state, action: PayloadAction<{ service: Service; quantity?: number; options?: Record<string, any>; selectedOptions?: Record<string, any> }>) => {
+            const { service, quantity = 1, options, selectedOptions } = action.payload;
+            const mergedOptions = selectedOptions || options;
+            const variantId = mergedOptions?.variantId;
+            
+            // Match by service ID AND variant (different variants = different cart items)
+            const existingIndex = state.items.findIndex(item => 
+                item.service.id === service.id && 
+                (item.selectedOptions?.variantId || null) === (variantId || null)
+            );
 
             if (existingIndex !== -1) {
                 state.items[existingIndex].quantity += quantity;
             } else {
-                state.items.push({ service, quantity, selectedOptions: options });
+                state.items.push({ service, quantity, selectedOptions: mergedOptions });
             }
 
             const totals = calculateTotals(state.items, state.appliedCoupon);

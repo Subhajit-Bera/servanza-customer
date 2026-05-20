@@ -205,7 +205,7 @@ export const bookingApi = {
         apiClient.post(`/bookings/${id}/resend-otp`),
 
     // Reviews
-    addReview: (bookingId: string, data: { rating: number; comment?: string }) =>
+    addReview: (bookingId: string, data: { rating?: number; comment?: string }) =>
         apiClient.post(`/bookings/${bookingId}/review`, data),
     getBookingReview: (bookingId: string) =>
         apiClient.get(`/bookings/${bookingId}/review`),
@@ -271,6 +271,9 @@ export const reviewsApi = {
     checkReview: (bookingId: string) =>
         apiClient.get(`/reviews/check/${bookingId}`),
 };
+
+// Alias for convenience
+export const reviewApi = reviewsApi;
 
 // Orders API
 export const orderApi = {

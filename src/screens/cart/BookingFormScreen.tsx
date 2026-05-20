@@ -53,7 +53,18 @@ const BookingFormScreen: React.FC = () => {
         ? allItems.filter(item => selectedIds.includes(item.service.id)) 
         : allItems;
         
-    const subtotal = items.reduce((sum, item) => sum + item.service.basePrice * item.quantity, 0);
+    // Variant-aware price resolution
+    const getItemPrice = (item: typeof items[0]): number => {
+        const variantId = item.selectedOptions?.variantId;
+        if (variantId) {
+            const metadata = item.service.metadata as any;
+            const variant = metadata?.variants?.[variantId];
+            if (variant?.price !== undefined) return variant.price;
+        }
+        return item.service.basePrice;
+    };
+        
+    const subtotal = items.reduce((sum, item) => sum + getItemPrice(item) * item.quantity, 0);
     const tax = Math.round(subtotal * 0.18);
     const couponDiscount = appliedCoupon?.discountAmount || 0;
     const total = subtotal + tax - couponDiscount;
@@ -191,6 +202,13 @@ const BookingFormScreen: React.FC = () => {
     };
 
     const handleAddAddress = () => {
+        if (addresses.length >= 5) {
+            Alert.alert(
+                'Address Limit Reached',
+                'You can have a maximum of 5 addresses. Please edit or delete an existing address from your profile.'
+            );
+            return;
+        }
         requireLocationPermission(
             () => {
                 navigation.navigate('AddAddress');
@@ -230,6 +248,7 @@ const BookingFormScreen: React.FC = () => {
                     const mappedItems = items.map(item => ({
                         serviceId: item.service.id,
                         quantity: item.quantity,
+                        variantId: item.selectedOptions?.variantId || undefined,
                     }));
                     await bookingApi.validateCart({
                         items: mappedItems,

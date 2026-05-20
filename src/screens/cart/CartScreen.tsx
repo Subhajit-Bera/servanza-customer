@@ -151,9 +151,40 @@ const CartScreen: React.FC = () => {
 
     const isItemSelected = (serviceId: string) => selectedIds.has(serviceId);
 
+    // Variant-aware price/duration resolution
+    const getItemPrice = (item: CartItem): number => {
+        const variantId = item.selectedOptions?.variantId;
+        if (variantId) {
+            const metadata = item.service.metadata as any;
+            const variant = metadata?.variants?.[variantId];
+            if (variant?.price !== undefined) return variant.price;
+        }
+        return item.service.basePrice;
+    };
+
+    const getItemDuration = (item: CartItem): number => {
+        const variantId = item.selectedOptions?.variantId;
+        if (variantId) {
+            const metadata = item.service.metadata as any;
+            const variant = metadata?.variants?.[variantId];
+            if (variant?.durationMins !== undefined) return variant.durationMins;
+        }
+        return item.service.durationMins;
+    };
+
+    const getVariantLabel = (item: CartItem): string | null => {
+        const variantId = item.selectedOptions?.variantId;
+        if (variantId) {
+            const metadata = item.service.metadata as any;
+            const variant = metadata?.variants?.[variantId];
+            return variant?.label || variantId;
+        }
+        return null;
+    };
+
     // Subtotal of selected items only
     const selectedSubtotal = effectivelySelected.reduce(
-        (sum, i) => sum + i.service.basePrice * i.quantity, 0
+        (sum, i) => sum + getItemPrice(i) * i.quantity, 0
     );
     const selectedTax = Math.round(selectedSubtotal * 0.18);
     const couponDiscount = appliedCoupon?.discountAmount || 0;
@@ -207,11 +238,17 @@ const CartScreen: React.FC = () => {
 
                     <View style={styles.itemMeta}>
                         <Ionicons name="time-outline" size={14} color={COLORS.textSecondary} />
-                        <Text style={styles.itemDuration}>{item.service.durationMins} mins</Text>
+                        <Text style={styles.itemDuration}>{getItemDuration(item)} mins</Text>
                     </View>
+                    {getVariantLabel(item) && (
+                        <View style={[styles.itemMeta, { marginTop: 2 }]}>
+                            <Ionicons name="options-outline" size={14} color={COLORS.primary} />
+                            <Text style={[styles.itemDuration, { color: COLORS.primary }]}>{getVariantLabel(item)}</Text>
+                        </View>
+                    )}
 
                     <View style={styles.itemFooter}>
-                        <Text style={styles.itemPrice}>{formatCurrency(item.service.basePrice)}</Text>
+                        <Text style={styles.itemPrice}>{formatCurrency(getItemPrice(item))}</Text>
 
                         <View style={styles.quantityContainer}>
                             <TouchableOpacity
@@ -404,7 +441,7 @@ const CartScreen: React.FC = () => {
                                         {item.service.title} × {item.quantity}
                                     </Text>
                                     <Text style={[styles.summaryValue, { fontSize: TYPOGRAPHY.fontSize.sm }]}>
-                                        {formatCurrency(item.service.basePrice * item.quantity)}
+                                        {formatCurrency(getItemPrice(item) * item.quantity)}
                                     </Text>
                                 </View>
                             ))}

@@ -100,6 +100,18 @@ const AddressesScreen: React.FC = () => {
         navigation.navigate('AddAddress', { address });
     };
 
+    // Add new address (with limit check)
+    const handleAddAddress = () => {
+        if (addresses.length >= 5) {
+            Alert.alert(
+                'Address Limit Reached',
+                'You can have a maximum of 5 addresses. Please edit or delete an existing address.'
+            );
+            return;
+        }
+        navigation.navigate('AddAddress');
+    };
+
     // Render address item
     const renderAddress = ({ item }: { item: Address }) => (
         <View style={styles.addressCard}>
@@ -174,7 +186,7 @@ const AddressesScreen: React.FC = () => {
                 <Text style={styles.headerTitle}>My Addresses</Text>
                 <TouchableOpacity
                     style={styles.addButton}
-                    onPress={() => navigation.navigate('AddAddress')}
+                    onPress={handleAddAddress}
                 >
                     <Ionicons name="add" size={24} color={COLORS.primary} />
                 </TouchableOpacity>
@@ -207,7 +219,7 @@ const AddressesScreen: React.FC = () => {
             {/* Add New Address FAB */}
             <TouchableOpacity
                 style={styles.fab}
-                onPress={() => navigation.navigate('AddAddress')}
+                onPress={handleAddAddress}
             >
                 <Ionicons name="add" size={28} color={COLORS.white} />
             </TouchableOpacity>
