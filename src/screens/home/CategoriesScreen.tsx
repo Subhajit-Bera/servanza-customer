@@ -16,6 +16,7 @@ import { COLORS, TYPOGRAPHY, SHADOWS, SPACING, BORDER_RADIUS } from '../../theme
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { fetchServices, fetchCategories, setSelectedCategory } from '../../store/slices/servicesSlice';
 import { addToCart } from '../../store/slices/cartSlice';
+import CategoriesSkeleton from '../../components/skeletons/CategoriesSkeleton';
 import type { HomeStackParamList } from '../../navigation/MainNavigator';
 import type { Category, Service } from '../../types';
 
@@ -138,10 +139,9 @@ const CategoriesScreen: React.FC = () => {
                 />
             </View>
 
-            {/* Services List */}
             {loading ? (
-                <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color={COLORS.primary} />
+                <View style={{ flex: 1 }}>
+                    <CategoriesSkeleton />
                 </View>
             ) : (
                 <FlatList

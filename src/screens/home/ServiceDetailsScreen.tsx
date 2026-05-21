@@ -767,6 +767,7 @@ import { addToCart, updateQuantity, removeFromCart } from '../../store/slices/ca
 import { addToFavorites, removeFromFavorites } from '../../store/slices/favoritesSlice';
 import { servicesApi } from '../../api/client';
 import { useAuthGate } from '../../hooks/useAuthGate';
+import ServiceDetailsSkeleton from '../../components/skeletons/ServiceDetailsSkeleton';
 import type { HomeStackParamList } from '../../navigation/MainNavigator';
 import type { Review } from '../../types';
 
@@ -932,11 +933,7 @@ const ServiceDetailsScreen: React.FC = () => {
     };
 
     if (loading || !service) {
-        return (
-            <SafeAreaView style={[styles.container, styles.loadingContainer]}>
-                <ActivityIndicator size="large" color={COLORS.primary} />
-            </SafeAreaView>
-        );
+        return <ServiceDetailsSkeleton />;
     }
 
     return (

@@ -18,6 +18,7 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import dayjs from 'dayjs';
 import { COLORS, TYPOGRAPHY, SHADOWS, SPACING, BORDER_RADIUS, formatCurrency } from '../../theme';
 import { orderApi } from '../../api/client';
+import BookingListSkeleton from '../../components/skeletons/BookingListSkeleton';
 import type { BookingsStackParamList } from '../../navigation/MainNavigator';
 
 type MyBookingsNavigationProp = StackNavigationProp<BookingsStackParamList, 'MyBookings'>;
@@ -287,8 +288,8 @@ const MyBookingsScreen: React.FC = () => {
                 </View>
 
                 {loading && !refreshing ? (
-                    <View style={styles.loadingContainer}>
-                        <ActivityIndicator size="large" color={COLORS.primary} />
+                    <View style={styles.wrapper}>
+                        <BookingListSkeleton />
                     </View>
                 ) : (
                     <FlatList

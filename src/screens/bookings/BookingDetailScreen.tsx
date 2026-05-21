@@ -20,6 +20,7 @@ import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { useBookingStatus } from '../../hooks/useSocket';
 import type { RootState } from '../../store';
 import { fetchBookingById, cancelBooking } from '../../store/slices/bookingsSlice';
+import BookingDetailSkeleton from '../../components/skeletons/BookingDetailSkeleton';
 import type { BookingsStackParamList } from '../../navigation/MainNavigator';
 import type { BookingStatus } from '../../types';
 
@@ -84,11 +85,7 @@ const BookingDetailScreen: React.FC = () => {
     };
 
     if (loading || !booking) {
-        return (
-            <SafeAreaView style={[styles.container, styles.loadingContainer]}>
-                <ActivityIndicator size="large" color={COLORS.primary} />
-            </SafeAreaView>
-        );
+        return <BookingDetailSkeleton />;
     }
 
     const STEPS = [

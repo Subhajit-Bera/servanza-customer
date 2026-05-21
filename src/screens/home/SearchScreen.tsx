@@ -19,6 +19,7 @@ import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { fetchServices, setSearchQuery } from '../../store/slices/servicesSlice';
 import { addToCart } from '../../store/slices/cartSlice';
 import { useDebounce } from '../../hooks/useDebounce';
+import CategoriesSkeleton from '../../components/skeletons/CategoriesSkeleton';
 import type { HomeStackParamList } from '../../navigation/MainNavigator';
 import type { Service } from '../../types';
 
@@ -262,8 +263,8 @@ const SearchScreen: React.FC = () => {
                     )}
                 </View>
             ) : loading ? (
-                <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color={COLORS.primary} />
+                <View style={{ flex: 1 }}>
+                    <CategoriesSkeleton />
                 </View>
             ) : (
                 <FlatList

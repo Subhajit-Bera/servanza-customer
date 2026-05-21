@@ -18,6 +18,7 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import * as Location from 'expo-location';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, TYPOGRAPHY, SHADOWS, SPACING, BORDER_RADIUS, formatCurrency } from '../../theme';
+import HomeScreenSkeleton from '../../components/skeletons/HomeScreenSkeleton';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { fetchServices, fetchCategories } from '../../store/slices/servicesSlice';
 import { addToCart } from '../../store/slices/cartSlice';
@@ -324,6 +325,11 @@ const HomeScreen: React.FC = () => {
                 }
                 showsVerticalScrollIndicator={false}
             >
+                {/* Skeleton loading on initial fetch */}
+                {loading && services.length === 0 ? (
+                    <HomeScreenSkeleton />
+                ) : (
+                <>
                 {/* Search Bar */}
                 <TouchableOpacity
                     style={styles.searchBar}
@@ -436,6 +442,8 @@ const HomeScreen: React.FC = () => {
                 </View>
 
                 <View style={styles.bottomPadding} />
+                </>
+                )}
             </ScrollView>
 
 
