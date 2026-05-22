@@ -10,6 +10,7 @@ import {
     Image,
     Dimensions,
     Linking,
+    InteractionManager,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -67,13 +68,16 @@ const HomeScreen: React.FC = () => {
     const defaultAddress = addresses?.find((a: any) => a.isDefault) || addresses?.[0];
 
     useEffect(() => {
-        loadData();
-        requestLocationPermission();
-        fetchPromotions();
+        const task = InteractionManager.runAfterInteractions(() => {
+            loadData();
+            requestLocationPermission();
+            fetchPromotions();
+        });
+
+        return () => task.cancel();
     }, []);
 
     // Auto-scroll promo banner every 3 seconds — only while screen is focused
-    // useFocusEffect clears the timer when user switches tabs (screen doesn't unmount in a tab navigator)
     useFocusEffect(
         useCallback(() => {
             if (promotions.length <= 1) return;
@@ -86,13 +90,6 @@ const HomeScreen: React.FC = () => {
             }, 3000);
             return () => clearInterval(timer);
         }, [promotions.length])
-    );
-
-    // Re-fetch all services when screen comes into focus (fixes category bug)
-    useFocusEffect(
-        useCallback(() => {
-            dispatch(fetchServices());
-        }, [])
     );
 
     const fetchPromotions = async () => {

@@ -10,6 +10,7 @@ import {
     Image,
     Linking,
     Alert,
+    InteractionManager,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -57,7 +58,11 @@ const MyBookingsScreen: React.FC = () => {
 
     useFocusEffect(
         useCallback(() => {
-            loadOrders();
+            const task = InteractionManager.runAfterInteractions(() => {
+                loadOrders();
+            });
+
+            return () => task.cancel();
         }, [statusFilter])
     );
 

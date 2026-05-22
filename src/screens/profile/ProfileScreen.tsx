@@ -8,6 +8,7 @@ import {
     TouchableOpacity,
     Alert,
     Image,
+    InteractionManager,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -43,7 +44,11 @@ const ProfileScreen: React.FC = () => {
 
     useFocusEffect(
         useCallback(() => {
-            dispatch(fetchBookings({}));
+            const task = InteractionManager.runAfterInteractions(() => {
+                dispatch(fetchBookings({}));
+            });
+
+            return () => task.cancel();
         }, [])
     );
 

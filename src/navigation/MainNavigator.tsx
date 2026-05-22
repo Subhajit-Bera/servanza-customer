@@ -256,15 +256,12 @@ const MainNavigator: React.FC = () => {
                     tabBarLabel: 'Home',
                     tabBarIcon: ({ focused }) => <TabIcon name={focused ? 'home' : 'home-outline'} focused={focused} />,
                 }}
-                listeners={({ navigation }) => ({
+                listeners={({ navigation, route }) => ({
                     tabPress: (e) => {
-                        e.preventDefault();
-                        navigation.dispatch(
-                            CommonActions.reset({
-                                index: 0,
-                                routes: [{ name: 'HomeTab', state: { routes: [{ name: 'Home' }] } }],
-                            })
-                        );
+                        if (!navigation.isFocused()) {
+                            e.preventDefault();
+                            navigation.navigate(route.name, { screen: 'Home' });
+                        }
                     },
                 })}
             />
@@ -275,15 +272,12 @@ const MainNavigator: React.FC = () => {
                     tabBarLabel: 'Bookings',
                     tabBarIcon: ({ focused }) => <TabIcon name={focused ? 'calendar' : 'calendar-outline'} focused={focused} />,
                 }}
-                listeners={({ navigation }) => ({
+                listeners={({ navigation, route }) => ({
                     tabPress: (e) => {
-                        e.preventDefault();
-                        navigation.dispatch(
-                            CommonActions.reset({
-                                index: 0,
-                                routes: [{ name: 'BookingsTab', state: { routes: [{ name: 'MyBookings' }] } }],
-                            })
-                        );
+                        if (!navigation.isFocused()) {
+                            e.preventDefault();
+                            navigation.navigate(route.name, { screen: 'MyBookings' });
+                        }
                     },
                 })}
             />
@@ -302,15 +296,12 @@ const MainNavigator: React.FC = () => {
                         height: 18,
                     },
                 }}
-                listeners={({ navigation }) => ({
+                listeners={({ navigation, route }) => ({
                     tabPress: (e) => {
-                        e.preventDefault();
-                        navigation.dispatch(
-                            CommonActions.reset({
-                                index: 0,
-                                routes: [{ name: 'CartTab', state: { routes: [{ name: 'Cart' }] } }],
-                            })
-                        );
+                        if (!navigation.isFocused()) {
+                            e.preventDefault();
+                            navigation.navigate(route.name, { screen: 'Cart' });
+                        }
                     },
                 })}
             />
@@ -321,15 +312,12 @@ const MainNavigator: React.FC = () => {
                     tabBarLabel: 'Profile',
                     tabBarIcon: ({ focused }) => <TabIcon name={focused ? 'person' : 'person-outline'} focused={focused} />,
                 }}
-                listeners={({ navigation }) => ({
+                listeners={({ navigation, route }) => ({
                     tabPress: (e) => {
-                        e.preventDefault();
-                        navigation.dispatch(
-                            CommonActions.reset({
-                                index: 0,
-                                routes: [{ name: 'ProfileTab', state: { routes: [{ name: 'Profile' }] } }],
-                            })
-                        );
+                        if (!navigation.isFocused()) {
+                            e.preventDefault();
+                            navigation.navigate(route.name, { screen: 'Profile' });
+                        }
                     },
                 })}
             />
