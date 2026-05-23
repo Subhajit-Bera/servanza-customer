@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, StyleSheet, Dimensions } from 'react-native';
-import { SkeletonBox, SkeletonCircle, SkeletonText, SkeletonGroup } from '../Skeleton';
+import { SkeletonBox, SkeletonCircle, SkeletonText } from '../Skeleton';
 import { SPACING, BORDER_RADIUS, COLORS } from '../../theme';
 
 const { width } = Dimensions.get('window');
@@ -12,8 +12,8 @@ const HomeScreenSkeleton: React.FC = () => (
     {/* Search bar placeholder */}
     <SkeletonBox
       width={'100%'}
-      height={44}
-      borderRadius={BORDER_RADIUS.xl}
+      height={48}
+      borderRadius={BORDER_RADIUS.xxl}
       style={{ marginHorizontal: SPACING.lg, marginBottom: SPACING.lg }}
     />
 
@@ -27,32 +27,32 @@ const HomeScreenSkeleton: React.FC = () => (
 
     {/* Categories section */}
     <View style={styles.sectionHeader}>
-      <SkeletonText width={100} height={18} />
-      <SkeletonText width={50} height={14} />
+      <SkeletonText width={120} height={20} />
+      <SkeletonText width={60} height={14} />
     </View>
     <View style={styles.categoriesRow}>
-      {[1, 2, 3, 4, 5].map((i) => (
+      {[1, 2, 3, 4].map((i) => (
         <View key={i} style={styles.categoryItem}>
-          <SkeletonCircle size={64} />
-          <SkeletonText width={50} height={10} style={{ marginTop: 8 }} />
+          <SkeletonCircle size={64} style={{ marginBottom: 10 }} />
+          <SkeletonText width={56} height={12} />
         </View>
       ))}
     </View>
 
     {/* Services section */}
-    <View style={[styles.sectionHeader, { marginTop: SPACING.xl }]}>
-      <SkeletonText width={120} height={18} />
-      <SkeletonText width={50} height={14} />
+    <View style={[styles.sectionHeader, { marginTop: SPACING.xl, marginBottom: SPACING.lg }]}>
+      <SkeletonText width={140} height={20} />
+      <SkeletonText width={60} height={14} />
     </View>
     <View style={styles.servicesGrid}>
       {[1, 2, 3, 4].map((i) => (
         <View key={i} style={styles.serviceCard}>
-          <SkeletonBox width={'100%'} height={120} borderRadius={0} />
+          <SkeletonBox width={'100%'} height={130} borderRadius={0} />
           <View style={{ padding: SPACING.md }}>
-            <SkeletonText width={'80%'} height={14} />
-            <SkeletonText width={'50%'} height={12} style={{ marginTop: 8 }} />
+            <SkeletonText width={'85%'} height={16} style={{ marginBottom: 8 }} />
+            <SkeletonText width={'60%'} height={14} style={{ marginBottom: 12 }} />
             <View style={styles.priceRow}>
-              <SkeletonText width={60} height={16} />
+              <SkeletonText width={70} height={18} />
               <SkeletonCircle size={32} />
             </View>
           </View>
@@ -76,11 +76,11 @@ const styles = StyleSheet.create({
   categoriesRow: {
     flexDirection: 'row',
     paddingHorizontal: SPACING.lg,
+    justifyContent: 'space-between',
   },
   categoryItem: {
     alignItems: 'center',
-    marginRight: SPACING.lg,
-    width: 75,
+    width: 70,
   },
   servicesGrid: {
     flexDirection: 'row',
@@ -90,7 +90,7 @@ const styles = StyleSheet.create({
   serviceCard: {
     width: CARD_WIDTH,
     marginHorizontal: SPACING.sm,
-    marginBottom: SPACING.md,
+    marginBottom: SPACING.lg,
     borderRadius: BORDER_RADIUS.xl,
     overflow: 'hidden',
     borderWidth: 1,
@@ -101,7 +101,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: SPACING.sm,
   },
 });
 

@@ -1,6 +1,7 @@
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import { CONFIG } from '../config/constants';
+import { deduplicateRequest, getCachedResponse, cacheResponse, getRequestKey } from './requestUtils';
 
 // Lazy import to avoid circular dependency: store → authSlice → client → store
 // We import dynamically so the store is fully initialized before first use.
@@ -156,8 +157,16 @@ export const userApi = {
 
 // Services API
 export const servicesApi = {
-    getServices: (params?: { categoryId?: string; search?: string }) =>
-        apiClient.get('/services', { params }),
+    getServices: async (params?: { categoryId?: string; search?: string }) => {
+        const key = getRequestKey('GET', '/services', params);
+        const cached = getCachedResponse(key, 60000); // 60s TTL
+        if (cached) return cached;
+        return deduplicateRequest(key, async () => {
+            const res = await apiClient.get('/services', { params });
+            cacheResponse(key, res);
+            return res;
+        });
+    },
     getServiceById: (id: string) =>
         apiClient.get(`/services/${id}`),
     getServiceReviews: (id: string, page = 1, limit = 10) =>
@@ -166,8 +175,16 @@ export const servicesApi = {
         apiClient.get(`/services/${id}/similar`, { params: { limit } }),
     getTrendingServices: (limit = 10) =>
         apiClient.get('/services/trending', { params: { limit } }),
-    getCategories: () =>
-        apiClient.get('/services/categories'),
+    getCategories: async () => {
+        const key = getRequestKey('GET', '/services/categories');
+        const cached = getCachedResponse(key, 60000); // 60s TTL
+        if (cached) return cached;
+        return deduplicateRequest(key, async () => {
+            const res = await apiClient.get('/services/categories');
+            cacheResponse(key, res);
+            return res;
+        });
+    },
     getCategoryBySlug: (slug: string) =>
         apiClient.get(`/services/categories/${slug}`),
     // Chat
@@ -256,8 +273,16 @@ export const favoritesApi = {
 
 // Promotions API
 export const promotionsApi = {
-    getPromotions: () =>
-        apiClient.get('/promotions'),
+    getPromotions: async () => {
+        const key = getRequestKey('GET', '/promotions');
+        const cached = getCachedResponse(key, 60000); // 60s TTL
+        if (cached) return cached;
+        return deduplicateRequest(key, async () => {
+            const res = await apiClient.get('/promotions');
+            cacheResponse(key, res);
+            return res;
+        });
+    },
 };
 
 // Reviews API
@@ -279,8 +304,16 @@ export const reviewApi = reviewsApi;
 export const orderApi = {
     createOrder: (data: any) =>
         apiClient.post('/orders', data),
-    getOrders: (params?: { status?: string; page?: number; limit?: number }) =>
-        apiClient.get('/orders', { params }),
+    getOrders: async (params?: { status?: string; page?: number; limit?: number }) => {
+        const key = getRequestKey('GET', '/orders', params);
+        const cached = getCachedResponse(key, 20000); // 20s TTL for orders
+        if (cached) return cached;
+        return deduplicateRequest(key, async () => {
+            const res = await apiClient.get('/orders', { params });
+            cacheResponse(key, res);
+            return res;
+        });
+    },
 };
 
 export default apiClient;

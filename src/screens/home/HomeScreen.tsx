@@ -23,6 +23,7 @@ import HomeScreenSkeleton from '../../components/skeletons/HomeScreenSkeleton';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { fetchServices, fetchCategories } from '../../store/slices/servicesSlice';
 import { addToCart } from '../../store/slices/cartSlice';
+import { fetchBookings } from '../../store/slices/bookingsSlice';
 import { promotionsApi } from '../../api/client';
 import type { HomeStackParamList } from '../../navigation/MainNavigator';
 import type { Service, Category } from '../../types';
@@ -52,7 +53,7 @@ const HomeScreen: React.FC = () => {
     const navigation = useNavigation<HomeNavigationProp>();
     const dispatch = useAppDispatch();
     const insets = useSafeAreaInsets();
-    const { services, categories, loading } = useAppSelector((state) => state.services);
+    const { services, categories, isServicesLoading } = useAppSelector((state) => state.services);
     const { user, addresses } = useAppSelector((state) => state.auth);
     const { totalItems } = useAppSelector((state) => state.cart);
 
@@ -140,6 +141,11 @@ const HomeScreen: React.FC = () => {
             dispatch(fetchServices()),
             dispatch(fetchCategories()),
         ]);
+
+        // Background prefetch for sibling tabs to avoid first-tap penalty
+        setTimeout(() => {
+            dispatch(fetchBookings({}));
+        }, 1000);
     };
 
     const onRefresh = useCallback(async () => {
@@ -323,7 +329,7 @@ const HomeScreen: React.FC = () => {
                 showsVerticalScrollIndicator={false}
             >
                 {/* Skeleton loading on initial fetch */}
-                {loading && services.length === 0 ? (
+                {isServicesLoading && services.length === 0 ? (
                     <HomeScreenSkeleton />
                 ) : (
                 <>

@@ -1,6 +1,45 @@
-import React, { useEffect, useRef } from 'react';
-import { View, Animated, StyleSheet, ViewStyle } from 'react-native';
+import React, { useEffect, useRef, useMemo } from 'react';
+import { View, Animated, StyleSheet, ViewStyle, Dimensions } from 'react-native';
 import { COLORS } from '../theme';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
+// ─── Shared shimmer clock ────────────────────────────────────────────────────
+// A single Animated.Value drives every skeleton on screen.
+// This avoids N independent Animated.loop calls (the old per-box pulse).
+
+const shimmerClock = new Animated.Value(0);
+let shimmerRunning = false;
+let shimmerRefCount = 0;
+
+function startShimmer() {
+  shimmerRefCount++;
+  if (shimmerRunning) return;
+  shimmerRunning = true;
+  Animated.loop(
+    Animated.timing(shimmerClock, {
+      toValue: 1,
+      duration: 1200,
+      useNativeDriver: true,
+    })
+  ).start();
+}
+
+function stopShimmer() {
+  shimmerRefCount--;
+  if (shimmerRefCount <= 0) {
+    shimmerClock.stopAnimation();
+    shimmerClock.setValue(0);
+    shimmerRunning = false;
+    shimmerRefCount = 0;
+  }
+}
+
+// ─── Colors ──────────────────────────────────────────────────────────────────
+const BASE_COLOR = '#EEF0F2';
+const HIGHLIGHT_COLOR = '#F8F9FB';
+
+// ─── SkeletonBox ─────────────────────────────────────────────────────────────
 
 interface SkeletonProps {
   width: number | string;
@@ -10,8 +49,9 @@ interface SkeletonProps {
 }
 
 /**
- * Pulse-animated skeleton placeholder.
- * Cycles opacity between 0.3 and 0.7 for a subtle loading shimmer.
+ * Shimmer-animated skeleton placeholder.
+ * Uses a single shared animation clock — no matter how many boxes you render,
+ * there is only ONE Animated.loop running globally.
  */
 export const SkeletonBox: React.FC<SkeletonProps> = ({
   width,
@@ -19,42 +59,54 @@ export const SkeletonBox: React.FC<SkeletonProps> = ({
   borderRadius = 8,
   style,
 }) => {
-  const pulseAnim = useRef(new Animated.Value(0.3)).current;
-
   useEffect(() => {
-    const animation = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, {
-          toValue: 0.7,
-          duration: 800,
-          useNativeDriver: true,
-        }),
-        Animated.timing(pulseAnim, {
-          toValue: 0.3,
-          duration: 800,
-          useNativeDriver: true,
-        }),
-      ])
-    );
-    animation.start();
-    return () => animation.stop();
-  }, [pulseAnim]);
+    startShimmer();
+    return () => stopShimmer();
+  }, []);
+
+  const translateX = useMemo(
+    () =>
+      shimmerClock.interpolate({
+        inputRange: [0, 1],
+        outputRange: [-SCREEN_WIDTH, SCREEN_WIDTH],
+      }),
+    []
+  );
 
   return (
-    <Animated.View
+    <View
       style={[
         {
           width: width as any,
           height,
           borderRadius,
-          backgroundColor: COLORS.border,
-          opacity: pulseAnim,
+          backgroundColor: BASE_COLOR,
+          overflow: 'hidden',
         },
         style,
       ]}
-    />
+    >
+      <Animated.View
+        style={{
+          ...StyleSheet.absoluteFillObject,
+          transform: [{ translateX }],
+        }}
+      >
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: HIGHLIGHT_COLOR,
+            width: SCREEN_WIDTH * 0.4,
+            opacity: 0.6,
+            borderRadius,
+          }}
+        />
+      </Animated.View>
+    </View>
   );
 };
+
+// ─── Convenience wrappers ────────────────────────────────────────────────────
 
 /** Circular skeleton (avatars, category icons) */
 export const SkeletonCircle: React.FC<{ size: number; style?: ViewStyle }> = ({

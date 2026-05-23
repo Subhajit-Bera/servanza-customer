@@ -292,7 +292,7 @@ const MyBookingsScreen: React.FC = () => {
                     />
                 </View>
 
-                {loading && !refreshing ? (
+                {loading && orders.length === 0 ? (
                     <View style={styles.wrapper}>
                         <BookingListSkeleton />
                     </View>
@@ -303,6 +303,9 @@ const MyBookingsScreen: React.FC = () => {
                         renderItem={renderOrder}
                         contentContainerStyle={styles.listContent}
                         showsVerticalScrollIndicator={false}
+                        initialNumToRender={5}
+                        windowSize={5}
+                        removeClippedSubviews={true}
                         refreshControl={
                             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} />
                         }
