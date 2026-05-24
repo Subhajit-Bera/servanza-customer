@@ -1,79 +1,64 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import { SkeletonBox, SkeletonCircle, SkeletonText } from '../Skeleton';
+import { SkeletonBox, SkeletonText } from '../Skeleton';
 import { SPACING, BORDER_RADIUS, COLORS } from '../../theme';
 
-/** Skeleton placeholder for the Booking/Order list */
-const BookingListSkeleton: React.FC = () => (
-    <View style={styles.container}>
-        {[1, 2, 3].map((i) => (
-            <View key={i} style={styles.card}>
-                {/* Header (Order ID & Status Pill) */}
-                <View style={styles.cardHeader}>
-                    <SkeletonText width={120} height={16} />
-                    <SkeletonBox width={80} height={26} borderRadius={13} />
-                </View>
-
-                {/* Body (Service Image & Info) */}
-                <View style={styles.cardBody}>
-                    <SkeletonBox width={64} height={64} borderRadius={BORDER_RADIUS.lg} style={{ marginRight: SPACING.md }} />
-                    <View style={styles.serviceInfo}>
-                        <SkeletonText width={'80%'} height={16} style={{ marginBottom: 8 }} />
-                        <SkeletonText width={'60%'} height={14} />
-                    </View>
-                </View>
-
-                <View style={styles.divider} />
-
-                {/* Footer (Price & Action Button) */}
-                <View style={styles.cardFooter}>
-                    <View>
-                        <SkeletonText width={80} height={12} style={{ marginBottom: 6 }} />
-                        <SkeletonText width={100} height={18} />
-                    </View>
-                    <SkeletonBox width={100} height={36} borderRadius={BORDER_RADIUS.lg} />
-                </View>
-            </View>
-        ))}
+/** Single booking card skeleton */
+const BookingCardSkeleton: React.FC = () => (
+  <View style={styles.card}>
+    <View style={styles.topRow}>
+      <SkeletonBox width={80} height={22} borderRadius={BORDER_RADIUS.md} />
+      <SkeletonText width={70} height={12} />
     </View>
+    <SkeletonText width={'65%'} height={16} style={{ marginTop: 12 }} />
+    <View style={styles.detailsRow}>
+      <SkeletonText width={'40%'} height={12} />
+      <SkeletonText width={60} height={16} />
+    </View>
+    <View style={styles.bottomRow}>
+      <SkeletonText width={'50%'} height={12} />
+    </View>
+  </View>
+);
+
+/** Skeleton for the bookings list screen — 3 placeholder cards */
+const BookingListSkeleton: React.FC = () => (
+  <View style={styles.container}>
+    {[1, 2, 3].map((i) => (
+      <BookingCardSkeleton key={i} />
+    ))}
+  </View>
 );
 
 const styles = StyleSheet.create({
-    container: {
-        paddingTop: SPACING.md,
-    },
-    card: {
-        backgroundColor: COLORS.white,
-        borderRadius: BORDER_RADIUS.xl,
-        padding: SPACING.lg,
-        marginBottom: SPACING.lg,
-        borderWidth: 1,
-        borderColor: COLORS.border,
-    },
-    cardHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: SPACING.md,
-    },
-    cardBody: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: SPACING.md,
-    },
-    serviceInfo: {
-        flex: 1,
-    },
-    divider: {
-        height: 1,
-        backgroundColor: COLORS.border,
-        marginVertical: SPACING.md,
-    },
-    cardFooter: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-    },
+  container: {
+    padding: SPACING.lg,
+  },
+  card: {
+    backgroundColor: COLORS.white,
+    borderRadius: BORDER_RADIUS.xl,
+    padding: SPACING.lg,
+    marginBottom: SPACING.md,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  topRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  detailsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  bottomRow: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
+  },
 });
 
 export default BookingListSkeleton;

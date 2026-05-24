@@ -120,7 +120,16 @@ const MyBookingsScreen: React.FC = () => {
             ? `${items[0]?.title} +${items.length - 1} more`
             : items[0]?.title || 'Service Booking';
 
-        const buddy = bookings[0]?.buddy || bookings[0]?.assignments?.[0]?.buddy;
+        let buddy = null;
+        if (bookings[0]) {
+            const activeAssignmentStatuses = ['ACCEPTED', 'ON_WAY', 'ARRIVED', 'IN_PROGRESS', 'COMPLETED'];
+            if (bookings[0].status === 'COMPLETED' || bookings[0].status === 'CANCELLED') {
+                buddy = bookings[0].buddy || bookings[0].assignments?.[0]?.buddy;
+            } else {
+                const assignment = bookings[0].assignments?.find((a: any) => activeAssignmentStatuses.includes(a.status));
+                buddy = bookings[0].buddy || assignment?.buddy;
+            }
+        }
 
         let canCall = false;
         let callReason = '';
@@ -303,9 +312,6 @@ const MyBookingsScreen: React.FC = () => {
                         renderItem={renderOrder}
                         contentContainerStyle={styles.listContent}
                         showsVerticalScrollIndicator={false}
-                        initialNumToRender={5}
-                        windowSize={5}
-                        removeClippedSubviews={true}
                         refreshControl={
                             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} />
                         }

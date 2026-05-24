@@ -185,7 +185,16 @@ const BookingDetailScreen: React.FC = () => {
         if (hasRating && !hasComment) reviewButtonLabel = 'Write a Review';
         else if (!hasRating && hasComment) reviewButtonLabel = 'Rate Service';
     }
-    const buddy = booking.buddy || booking.assignments?.[0]?.buddy;
+    let buddy = null;
+    if (booking) {
+        const activeAssignmentStatuses = ['ACCEPTED', 'ON_WAY', 'ARRIVED', 'IN_PROGRESS', 'COMPLETED'];
+        if (booking.status === 'COMPLETED' || booking.status === 'CANCELLED') {
+            buddy = booking.buddy || booking.assignments?.[0]?.buddy;
+        } else {
+            const assignment = booking.assignments?.find((a: any) => activeAssignmentStatuses.includes(a.status));
+            buddy = booking.buddy || assignment?.buddy;
+        }
+    }
 
     let canCall = false;
     let canChat = false;

@@ -171,6 +171,7 @@ const registerTokenWithBackend = async (token: string): Promise<void> => {
             },
             body: JSON.stringify({
                 token,
+                appSource: 'CUSTOMER_APP',
             }),
         });
 

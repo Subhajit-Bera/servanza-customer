@@ -23,7 +23,6 @@ import HomeScreenSkeleton from '../../components/skeletons/HomeScreenSkeleton';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { fetchServices, fetchCategories } from '../../store/slices/servicesSlice';
 import { addToCart } from '../../store/slices/cartSlice';
-import { fetchBookings } from '../../store/slices/bookingsSlice';
 import { promotionsApi } from '../../api/client';
 import type { HomeStackParamList } from '../../navigation/MainNavigator';
 import type { Service, Category } from '../../types';
@@ -141,11 +140,6 @@ const HomeScreen: React.FC = () => {
             dispatch(fetchServices()),
             dispatch(fetchCategories()),
         ]);
-
-        // Background prefetch for sibling tabs to avoid first-tap penalty
-        setTimeout(() => {
-            dispatch(fetchBookings({}));
-        }, 1000);
     };
 
     const onRefresh = useCallback(async () => {
