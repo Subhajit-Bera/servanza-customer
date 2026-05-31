@@ -3,6 +3,7 @@ import { getSocket, addSocketListener, removeSocketListener } from '../services/
 import { WEBRTC_CONFIG } from '../config/constants';
 import InCallManager from 'react-native-incall-manager';
 import { RTCPeerConnection, RTCIceCandidate, RTCSessionDescription, mediaDevices } from 'react-native-webrtc';
+import { PermissionsAndroid, Platform } from 'react-native';
 
 export type CallState = 'idle' | 'calling' | 'ringing' | 'connected' | 'ended';
 
@@ -20,8 +21,8 @@ export interface IncomingCallData {
         name: string;
         profileImage?: string;
     };
-    offer: RTCSessionDescriptionInit;
-    iceServers: RTCIceServer[];
+    offer?: RTCSessionDescriptionInit;
+    iceServers?: RTCIceServer[];
 }
 
 export const useCall = ({ bookingId, currentUserId, onIncomingCall }: UseCallOptions) => {
@@ -36,6 +37,7 @@ export const useCall = ({ bookingId, currentUserId, onIncomingCall }: UseCallOpt
     const durationIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const callIdRef = useRef<string | null>(null);
     const iceServersRef = useRef<RTCIceServer[]>(WEBRTC_CONFIG.iceServers);
+    const pendingIceCandidatesRef = useRef<RTCIceCandidateInit[]>([]);
 
     // Clean up WebRTC resources
     const cleanupCall = useCallback(() => {
@@ -60,6 +62,7 @@ export const useCall = ({ bookingId, currentUserId, onIncomingCall }: UseCallOpt
         setCallDuration(0);
         setIsMuted(false);
         setIsSpeaker(false);
+        pendingIceCandidatesRef.current = [];
     }, []);
 
     // Create a peer connection
@@ -109,6 +112,22 @@ export const useCall = ({ bookingId, currentUserId, onIncomingCall }: UseCallOpt
         const socket = getSocket();
         if (!socket?.connected || callState !== 'idle') return;
 
+        if (Platform.OS === 'android') {
+            try {
+                const permissions = [PermissionsAndroid.PERMISSIONS.RECORD_AUDIO];
+                if (Platform.Version >= 33) {
+                    permissions.push(PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS);
+                }
+                const granted = await PermissionsAndroid.requestMultiple(permissions);
+                if (granted[PermissionsAndroid.PERMISSIONS.RECORD_AUDIO] !== PermissionsAndroid.RESULTS.GRANTED) {
+                    console.error('[Call] Microphone permission denied');
+                    return;
+                }
+            } catch (err) {
+                console.warn('[Call] Error requesting permissions', err);
+            }
+        }
+
         try {
             // Get audio stream
             const stream = await mediaDevices.getUserMedia({ audio: true, video: false });
@@ -144,18 +163,58 @@ export const useCall = ({ bookingId, currentUserId, onIncomingCall }: UseCallOpt
             const socket = getSocket();
             if (!socket?.connected) return;
 
+            if (Platform.OS === 'android') {
+                try {
+                    const permissions = [PermissionsAndroid.PERMISSIONS.RECORD_AUDIO];
+                    if (Platform.Version >= 33) {
+                        permissions.push(PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS);
+                    }
+                    const granted = await PermissionsAndroid.requestMultiple(permissions);
+                    if (granted[PermissionsAndroid.PERMISSIONS.RECORD_AUDIO] !== PermissionsAndroid.RESULTS.GRANTED) {
+                        console.error('[Call] Microphone permission denied');
+                        return;
+                    }
+                } catch (err) {
+                    console.warn('[Call] Error requesting permissions', err);
+                }
+            }
+
             try {
+                // 1. Fetch pending call data to get offer and iceServers
+                const { callApi } = await import('../api/client');
+                const response = await callApi.getPendingCall(incomingData.callId);
+                const pendingData = response.data?.data;
+
+                if (!pendingData || !pendingData.offer) {
+                    throw new Error('Call offer not found or expired');
+                }
+
+                const offer = pendingData.offer;
+                const iceServers = pendingData.iceServers || WEBRTC_CONFIG.iceServers;
+
                 const stream = await mediaDevices.getUserMedia({ audio: true, video: false });
                 localStreamRef.current = stream as any;
 
-                iceServersRef.current = incomingData.iceServers;
-                const pc = createPeerConnection(incomingData.iceServers);
+                iceServersRef.current = iceServers;
+                const pc = createPeerConnection(iceServers);
 
                 (stream as any).getTracks().forEach((track: any) => {
                     pc.addTrack(track, stream as any);
                 });
 
-                await pc.setRemoteDescription(new RTCSessionDescription(incomingData.offer as any));
+                await pc.setRemoteDescription(new RTCSessionDescription(offer as any));
+
+                // Process queued ICE candidates
+                while (pendingIceCandidatesRef.current.length > 0) {
+                    const candidate = pendingIceCandidatesRef.current.shift();
+                    if (candidate) {
+                        try {
+                            await pc.addIceCandidate(new RTCIceCandidate(candidate));
+                        } catch (e) {
+                            console.error('[Call] Error adding queued ICE candidate:', e);
+                        }
+                    }
+                }
 
                 const answer = await pc.createAnswer();
                 await pc.setLocalDescription(answer);
@@ -179,21 +238,38 @@ export const useCall = ({ bookingId, currentUserId, onIncomingCall }: UseCallOpt
 
     // Reject an incoming call
     const rejectCall = useCallback(
-        (incomingCallId: string) => {
-            const socket = getSocket();
-            if (!socket?.connected) return;
-
-            socket.emit('call:reject', { callId: incomingCallId });
+        async (incomingCallId: string) => {
+            try {
+                const { callApi } = await import('../api/client');
+                await callApi.rejectCall(incomingCallId);
+            } catch (error) {
+                console.error('[Call] Error rejecting call via REST:', error);
+                // Fallback to socket if REST fails
+                const socket = getSocket();
+                if (socket?.connected) {
+                    socket.emit('call:reject', { callId: incomingCallId });
+                }
+            }
             setCallState('idle');
+            cleanupCall();
         },
-        []
+        [cleanupCall]
     );
 
     // End the call
-    const endCall = useCallback(() => {
-        const socket = getSocket();
-        if (callIdRef.current && socket?.connected) {
-            socket.emit('call:end', { callId: callIdRef.current });
+    const endCall = useCallback(async () => {
+        if (callIdRef.current) {
+            try {
+                const { callApi } = await import('../api/client');
+                await callApi.endCall(callIdRef.current);
+            } catch (error) {
+                console.error('[Call] Error ending call via REST:', error);
+                // Fallback
+                const socket = getSocket();
+                if (socket?.connected) {
+                    socket.emit('call:end', { callId: callIdRef.current });
+                }
+            }
         }
 
         cleanupCall();
@@ -210,8 +286,11 @@ export const useCall = ({ bookingId, currentUserId, onIncomingCall }: UseCallOpt
         if (localStreamRef.current) {
             const audioTrack = localStreamRef.current.getAudioTracks()[0];
             if (audioTrack) {
-                audioTrack.enabled = !audioTrack.enabled;
-                setIsMuted(!audioTrack.enabled);
+                const newMutedState = !audioTrack.enabled;
+                audioTrack.enabled = newMutedState;
+                setIsMuted(!newMutedState);
+                // Also tell InCallManager to mute mic
+                InCallManager?.setMicrophoneMute(!newMutedState);
             }
         }
     }, []);
@@ -248,6 +327,19 @@ export const useCall = ({ bookingId, currentUserId, onIncomingCall }: UseCallOpt
 
             try {
                 await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+
+                // Process queued ICE candidates
+                while (pendingIceCandidatesRef.current.length > 0) {
+                    const candidate = pendingIceCandidatesRef.current.shift();
+                    if (candidate) {
+                        try {
+                            await pc.addIceCandidate(new RTCIceCandidate(candidate));
+                        } catch (e) {
+                            console.error('[Call] Error adding queued ICE candidate:', e);
+                        }
+                    }
+                }
+
                 setCallState('connected');
                 startDurationTimer();
             } catch (error) {
@@ -261,7 +353,11 @@ export const useCall = ({ bookingId, currentUserId, onIncomingCall }: UseCallOpt
             if (!pc) return;
 
             try {
-                await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+                if (pc.remoteDescription) {
+                    await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+                } else {
+                    pendingIceCandidatesRef.current.push(data.candidate);
+                }
             } catch (error) {
                 console.error('[Call] Error adding ICE candidate:', error);
             }

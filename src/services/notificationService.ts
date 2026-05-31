@@ -84,7 +84,7 @@ if (Platform.OS === 'android') {
 
 // Notification types from backend
 export interface PushNotificationData {
-    type: 'BOOKING_CONFIRMED' | 'BOOKING_ASSIGNED' | 'BUDDY_EN_ROUTE' | 'BUDDY_ARRIVED' | 'BOOKING_COMPLETED' | 'BOOKING_CANCELLED' | 'CHAT_MESSAGE' | 'PROMO';
+    type: 'BOOKING_CONFIRMED' | 'BOOKING_ASSIGNED' | 'BUDDY_EN_ROUTE' | 'BUDDY_ARRIVED' | 'BOOKING_COMPLETED' | 'BOOKING_CANCELLED' | 'CHAT_MESSAGE' | 'PROMO' | 'incoming-call';
     bookingId?: string;
     title: string;
     body: string;

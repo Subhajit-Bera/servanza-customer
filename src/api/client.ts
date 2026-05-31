@@ -283,5 +283,15 @@ export const orderApi = {
         apiClient.get('/orders', { params }),
 };
 
+// Call API
+export const callApi = {
+    getPendingCall: (callId: string) =>
+        apiClient.get(`/calls/${callId}/pending`),
+    rejectCall: (callId: string) =>
+        apiClient.post(`/calls/${callId}/reject`),
+    endCall: (callId: string) =>
+        apiClient.post(`/calls/${callId}/end`),
+};
+
 export default apiClient;
 

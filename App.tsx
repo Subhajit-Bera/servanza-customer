@@ -14,6 +14,7 @@ import ProfileSetupScreen from './src/screens/auth/ProfileSetupScreen';
 import { connectSocket, disconnectSocket, addSocketListener, removeSocketListener } from './src/services/socketClient';
 import { updateBookingStatus } from './src/store/slices/bookingsSlice';
 import { loadCart } from './src/store/slices/cartSlice';
+import { checkAuthStatus } from './src/store/slices/authSlice';
 import { useNotifications, useNotificationNavigation } from './src/hooks/useNotifications';
 import { useLocation } from './src/hooks/useLocation';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
@@ -52,6 +53,9 @@ const RootNavigator: React.FC = () => {
   const [isHydrated, setIsHydrated] = useState(false);
 
   useEffect(() => {
+    // Check auth status first
+    dispatch(checkAuthStatus());
+
     const hydrateFromStorage = async () => {
       try {
         const cartData = await AsyncStorage.getItem('servanza_cart');
@@ -63,10 +67,6 @@ const RootNavigator: React.FC = () => {
         console.error('Failed to hydrate cart:', error);
       } finally {
         setIsHydrated(true);
-        // Only hide splash once auth check AND cart hydration are both done
-        if (!isLoading) {
-          SplashScreen.hideAsync();
-        }
       }
     };
     hydrateFromStorage();
@@ -89,7 +89,9 @@ const RootNavigator: React.FC = () => {
           dispatch(updateBookingStatus({
             bookingId: data.bookingId,
             status: data.status,
-            otp: data.otp,
+            otp: data.completionOtp || data.otp,
+            assignmentId: data.assignmentId,
+            buddyId: data.buddyId,
           }));
         }
       };

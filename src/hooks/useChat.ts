@@ -4,6 +4,7 @@ import { servicesApi } from '../api/client';
 
 export interface ChatMessage {
     id: string;
+    clientMessageId?: string;
     bookingId: string;
     senderId: string;
     sender: {
@@ -60,11 +61,20 @@ export const useChat = ({ bookingId, currentUserId }: UseChatOptions) => {
         const handleNewMessage = (data: ChatMessage) => {
             if (data.bookingId === bookingId) {
                 setMessages((prev) => {
-                    // Deduplicate
+                    if (data.clientMessageId) {
+                        const tempIndex = prev.findIndex(m => m.clientMessageId === data.clientMessageId);
+                        if (tempIndex !== -1) {
+                            const newMsgs = [...prev];
+                            newMsgs[tempIndex] = data;
+                            return newMsgs;
+                        }
+                    }
+
+                    // Deduplicate by ID
                     if (prev.some((m) => m.id === data.id)) return prev;
                     
-                    // Ignore our own echoes because optimistic UI already added them
-                    if (data.senderId === currentUserId) return prev;
+                    // Ignore our own echoes fallback if no clientMessageId
+                    if (!data.clientMessageId && data.senderId === currentUserId) return prev;
                     
                     return [...prev, data];
                 });
@@ -134,8 +144,11 @@ export const useChat = ({ bookingId, currentUserId }: UseChatOptions) => {
             const socket = getSocket();
             if (!socket?.connected || !content.trim()) return;
 
+            const clientMessageId = Date.now().toString() + Math.random().toString(36).substring(7);
+
             const tempMessage: ChatMessage = {
-                id: Date.now().toString() + Math.random().toString(36).substring(7),
+                id: clientMessageId, // temporary ID
+                clientMessageId,
                 bookingId,
                 senderId: currentUserId,
                 sender: { id: currentUserId, name: 'You', role: 'CUSTOMER' },
@@ -151,6 +164,7 @@ export const useChat = ({ bookingId, currentUserId }: UseChatOptions) => {
                 bookingId,
                 content: content.trim(),
                 type: 'TEXT',
+                clientMessageId,
             });
         },
         [bookingId, currentUserId]

@@ -114,23 +114,35 @@ const bookingsSlice = createSlice({
         clearSelectedBooking: (state) => {
             state.selectedBooking = null;
         },
-        updateBookingStatus: (state, action: PayloadAction<{ bookingId: string; status: BookingStatus; otp?: string }>) => {
-            const { bookingId, status, otp } = action.payload;
+        updateBookingStatus: (state, action: PayloadAction<{ bookingId: string; status: BookingStatus; otp?: string; assignmentId?: string; buddyId?: string }>) => {
+            const { bookingId, status, otp, assignmentId, buddyId } = action.payload;
 
             // Update in list
             const index = state.bookings.findIndex(b => b.id === bookingId);
             if (index !== -1) {
                 state.bookings[index].status = status;
-                if (otp) {
+                if (otp !== undefined) {
                     state.bookings[index].completionOtp = otp;
+                }
+                if (assignmentId) {
+                    state.bookings[index].assignmentId = assignmentId;
+                }
+                if (buddyId) {
+                    state.bookings[index].buddyId = buddyId;
                 }
             }
 
             // Update selected booking
             if (state.selectedBooking?.id === bookingId) {
                 state.selectedBooking.status = status;
-                if (otp) {
+                if (otp !== undefined) {
                     state.selectedBooking.completionOtp = otp;
+                }
+                if (assignmentId) {
+                    state.selectedBooking.assignmentId = assignmentId;
+                }
+                if (buddyId) {
+                    state.selectedBooking.buddyId = buddyId;
                 }
             }
         },

@@ -159,6 +159,8 @@ export interface Booking {
     reviews?: Review[];
     assignments?: any[];
     metadata?: any;
+    assignmentId?: string;
+    buddyId?: string;
 }
 
 export interface BuddyInfo {

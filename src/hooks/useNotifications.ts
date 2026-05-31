@@ -72,6 +72,36 @@ export const useNotificationNavigation = () => {
                     console.log('[useNotificationNavigation] Chat notification received');
                     break;
 
+                case 'incoming-call':
+                    console.log('[useNotificationNavigation] Incoming call tap from background');
+                    if (data.bookingId && data.callId) {
+                        let callerData = { name: 'Caller' };
+                        try {
+                            if (data.caller) {
+                                callerData = typeof data.caller === 'string' ? JSON.parse(data.caller) : data.caller;
+                            }
+                        } catch (e) { }
+
+                        navigation.navigate('Main', {
+                            screen: 'BookingsTab',
+                            params: {
+                                screen: 'VoiceCall',
+                                params: {
+                                    bookingId: data.bookingId,
+                                    buddyName: callerData.name,
+                                    isIncoming: true,
+                                    callId: data.callId,
+                                    _incomingCallData: {
+                                        callId: data.callId,
+                                        bookingId: data.bookingId,
+                                        caller: callerData,
+                                    }
+                                }
+                            }
+                        });
+                    }
+                    break;
+
                 case 'PROMO':
                     // Navigate to promotions/offers (when implemented)
                     console.log('[useNotificationNavigation] Promo notification received');

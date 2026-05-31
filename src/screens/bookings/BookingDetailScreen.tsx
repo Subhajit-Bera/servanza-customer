@@ -310,13 +310,13 @@ const BookingDetailScreen: React.FC = () => {
                 )}
 
                 {/* OTP Verification Card */}
-                {booking.completionOtp && !['COMPLETED', 'CANCELLED'].includes(booking.status) && (
+                {booking.completionOtp && booking.status === 'IN_PROGRESS' && (
                     <View style={styles.otpCard}>
                         <View style={styles.otpHeader}>
                             <Ionicons name="shield-checkmark" size={20} color={COLORS.primary} />
-                            <Text style={styles.otpTitle}>Start Service OTP</Text>
+                            <Text style={styles.otpTitle}>Completion OTP</Text>
                         </View>
-                        <Text style={styles.otpText}>Share this code with your buddy to start the service.</Text>
+                        <Text style={styles.otpText}>Share this code with your buddy to complete the service and process payment.</Text>
                         <View style={styles.otpBox}>
                             <Text style={styles.otpCode}>{booking.completionOtp}</Text>
                         </View>
