@@ -54,6 +54,7 @@
     "@config-plugins/react-native-webrtc": "^14.0.0",
     "@types/react": "~19.2.10",
     "@types/react-native-razorpay": "^2.2.6",
+    "@types/uuid": "^10.0.0",
     "typescript": "~5.9.2"
   },
   "private": true

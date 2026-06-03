@@ -12,6 +12,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS } from '../../theme';
 import { useAppSelector } from '../../store/hooks';
 import { useCall } from '../../hooks/useCall';
+import { RTCView } from 'react-native-webrtc';
 
 type RouteParams = {
     params: {
@@ -40,6 +41,7 @@ const VoiceCallScreen = () => {
         endCall,
         toggleMute,
         toggleSpeaker,
+        remoteStream,
     } = useCall({ bookingId, currentUserId });
 
     const hasAnsweredRef = useRef(false);
@@ -113,6 +115,13 @@ const VoiceCallScreen = () => {
                     
                     <Text style={styles.nameText}>{buddyName}</Text>
                     <Text style={styles.statusText}>{getStatusText()}</Text>
+
+                    {remoteStream && (
+                        <RTCView 
+                            streamURL={remoteStream.toURL()} 
+                            style={styles.hiddenRtcView} 
+                        />
+                    )}
                 </View>
 
                 <View style={styles.controlsContainer}>
@@ -251,6 +260,12 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.4,
         shadowRadius: 8,
+    },
+    hiddenRtcView: {
+        position: 'absolute',
+        width: 1,
+        height: 1,
+        opacity: 0,
     },
 });
 

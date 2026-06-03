@@ -15,6 +15,7 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import MapView, { Marker, PROVIDER_GOOGLE, Polyline } from 'react-native-maps';
 import { COLORS, TYPOGRAPHY, SPACING, BORDER_RADIUS, SHADOWS } from '../../theme';
 import { useBuddyLocation, useSocket, useBookingStatus } from '../../hooks/useSocket';
+import { bookingApi } from '../../api/client';
 import type { BookingsStackParamList } from '../../navigation/MainNavigator';
 
 const { width, height } = Dimensions.get('window');
@@ -40,10 +41,52 @@ const TrackBuddyScreen: React.FC = () => {
     const { location: buddyLocation, eta } = useBuddyLocation(bookingId);
     const { status } = useBookingStatus(bookingId);
 
-    const [customerLocation] = useState(DEFAULT_LOCATION);
+    const [bookingDetails, setBookingDetails] = useState<any>(null);
+    const [initialBuddyLocation, setInitialBuddyLocation] = useState<{latitude: number, longitude: number} | null>(null);
+    const [customerLocation, setCustomerLocation] = useState(DEFAULT_LOCATION);
     const [isMapReady, setIsMapReady] = useState(false);
     const [showEta, setShowEta] = useState(true);
     const [etaSeconds, setEtaSeconds] = useState<number | null>(null);
+    const [loading, setLoading] = useState(true);
+
+    const activeBuddyLocation = buddyLocation || initialBuddyLocation;
+
+    useEffect(() => {
+        const fetchInitialData = async () => {
+            try {
+                setLoading(true);
+                const [bookingRes, locationRes] = await Promise.all([
+                    bookingApi.getBookingById(bookingId),
+                    bookingApi.getBuddyLocation(bookingId).catch(() => null),
+                ]);
+
+                const bookingData = bookingRes.data?.data || bookingRes.data;
+                if (bookingData) {
+                    setBookingDetails(bookingData);
+                    if (bookingData.address?.latitude && bookingData.address?.longitude) {
+                        setCustomerLocation({
+                            latitude: bookingData.address.latitude,
+                            longitude: bookingData.address.longitude,
+                        });
+                    }
+                }
+
+                const locationData = locationRes?.data?.data || locationRes?.data;
+                if (locationData?.latitude && locationData?.longitude) {
+                    setInitialBuddyLocation({
+                        latitude: locationData.latitude,
+                        longitude: locationData.longitude,
+                    });
+                }
+            } catch (error) {
+                console.error('Error fetching track buddy initial data:', error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchInitialData();
+    }, [bookingId]);
 
     useEffect(() => {
         if (eta?.minutes != null) {
@@ -69,13 +112,12 @@ const TrackBuddyScreen: React.FC = () => {
         return `${m}:${s < 10 ? '0' : ''}${s} min`;
     };
 
-    // Fit map to show both markers
     const fitToMarkers = () => {
-        if (mapRef.current && buddyLocation) {
+        if (mapRef.current && activeBuddyLocation) {
             mapRef.current.fitToCoordinates(
                 [
                     { latitude: customerLocation.latitude, longitude: customerLocation.longitude },
-                    { latitude: buddyLocation.latitude, longitude: buddyLocation.longitude },
+                    { latitude: activeBuddyLocation.latitude, longitude: activeBuddyLocation.longitude },
                 ],
                 {
                     edgePadding: { top: 100, right: 50, bottom: 200, left: 50 },
@@ -86,15 +128,20 @@ const TrackBuddyScreen: React.FC = () => {
     };
 
     useEffect(() => {
-        if (isMapReady && buddyLocation) {
+        if (isMapReady && activeBuddyLocation) {
             fitToMarkers();
         }
-    }, [isMapReady, buddyLocation?.latitude, buddyLocation?.longitude]);
+    }, [isMapReady, activeBuddyLocation?.latitude, activeBuddyLocation?.longitude]);
 
     const getStatusText = () => {
-        switch (status) {
+        const currentStatus = status || bookingDetails?.status;
+        switch (currentStatus) {
             case 'ASSIGNED':
+            case 'ACCEPTED':
+            case 'ON_WAY':
                 return 'Buddy is on the way';
+            case 'ARRIVED':
+                return 'Buddy has arrived';
             case 'IN_PROGRESS':
                 return 'Service in progress';
             case 'COMPLETED':
@@ -102,6 +149,19 @@ const TrackBuddyScreen: React.FC = () => {
             default:
                 return 'Tracking buddy...';
         }
+    };
+
+    const activeBuddy = bookingDetails?.assignments?.[0]?.buddy;
+    const buddyName = activeBuddy?.user?.name || 'Your Buddy';
+    const buddyRating = activeBuddy?.rating ? activeBuddy.rating.toFixed(1) : 'New';
+    const buddyImage = activeBuddy?.user?.avatar || 'https://via.placeholder.com/100';
+
+    const handleCall = () => {
+        (navigation as any).navigate('VoiceCall', { bookingId, customerName: buddyName });
+    };
+
+    const handleChat = () => {
+        (navigation as any).navigate('Chat', { bookingId, customerName: buddyName });
     };
 
     return (
@@ -145,11 +205,11 @@ const TrackBuddyScreen: React.FC = () => {
                     </Marker>
 
                     {/* Buddy marker (Bicycle/Scooter) */}
-                    {buddyLocation && (
+                    {activeBuddyLocation && (
                         <Marker
                             coordinate={{
-                                latitude: buddyLocation.latitude,
-                                longitude: buddyLocation.longitude,
+                                latitude: activeBuddyLocation.latitude,
+                                longitude: activeBuddyLocation.longitude,
                             }}
                             anchor={{ x: 0.5, y: 0.5 }}
                         >
@@ -162,10 +222,10 @@ const TrackBuddyScreen: React.FC = () => {
                     )}
 
                     {/* Route line */}
-                    {buddyLocation && (
+                    {activeBuddyLocation && (
                         <Polyline
                             coordinates={[
-                                { latitude: buddyLocation.latitude, longitude: buddyLocation.longitude },
+                                { latitude: activeBuddyLocation.latitude, longitude: activeBuddyLocation.longitude },
                                 customerLocation,
                             ]}
                             strokeColor={COLORS.primary}
@@ -209,7 +269,7 @@ const TrackBuddyScreen: React.FC = () => {
             <View style={styles.bottomSheet}>
                 <View style={styles.dragHandle} />
 
-                {!buddyLocation ? (
+                {loading ? (
                     <View style={styles.loadingContainer}>
                         <ActivityIndicator size="large" color={COLORS.primary} />
                         <Text style={styles.loadingText}>Locating your buddy...</Text>
@@ -219,21 +279,21 @@ const TrackBuddyScreen: React.FC = () => {
                         <View style={styles.buddyProfile}>
                             <View style={styles.avatarContainer}>
                                 <Image
-                                    source={{ uri: 'https://via.placeholder.com/100' }}
+                                    source={{ uri: buddyImage }}
                                     style={styles.avatar}
                                 />
                                 <View style={styles.ratingBadge}>
                                     <Ionicons name="star" size={10} color={COLORS.white} />
-                                    <Text style={styles.ratingText}>4.9</Text>
+                                    <Text style={styles.ratingText}>{buddyRating}</Text>
                                 </View>
                             </View>
                             <View style={styles.buddyInfo}>
-                                <Text style={styles.buddyName}>Rahul Kumar</Text>
-                                <Text style={styles.buddyRole}>Top Rated Professional</Text>
+                                <Text style={styles.buddyName}>{buddyName}</Text>
+                                <Text style={styles.buddyRole}>Servanza Professional</Text>
                                 <Text style={styles.serviceStatus}>{getStatusText()}</Text>
                             </View>
                             <View style={styles.callButtonContainer}>
-                                <TouchableOpacity style={styles.phoneButton}>
+                                <TouchableOpacity style={styles.phoneButton} onPress={handleCall}>
                                     <Ionicons name="call" size={20} color={COLORS.white} />
                                 </TouchableOpacity>
                             </View>
@@ -255,7 +315,7 @@ const TrackBuddyScreen: React.FC = () => {
                             </View>
                         )}
 
-                        <TouchableOpacity style={styles.messageButton}>
+                        <TouchableOpacity style={styles.messageButton} onPress={handleChat}>
                             <Text style={styles.messageButtonText}>Message Buddy</Text>
                             <Ionicons name="chatbubble-outline" size={20} color={COLORS.primary} />
                         </TouchableOpacity>

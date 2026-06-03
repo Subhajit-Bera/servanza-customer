@@ -2,8 +2,10 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { getSocket, addSocketListener, removeSocketListener } from '../services/socketClient';
 import { WEBRTC_CONFIG } from '../config/constants';
 import InCallManager from 'react-native-incall-manager';
-import { RTCPeerConnection, RTCIceCandidate, RTCSessionDescription, mediaDevices } from 'react-native-webrtc';
+import { RTCPeerConnection, RTCIceCandidate, RTCSessionDescription, mediaDevices, MediaStream } from 'react-native-webrtc';
 import { PermissionsAndroid, Platform } from 'react-native';
+import { callApi } from '../api/client';
+import { v4 as uuidv4 } from 'uuid';
 
 export type CallState = 'idle' | 'calling' | 'ringing' | 'connected' | 'ended';
 
@@ -31,11 +33,13 @@ export const useCall = ({ bookingId, currentUserId, onIncomingCall }: UseCallOpt
     const [callDuration, setCallDuration] = useState(0);
     const [isMuted, setIsMuted] = useState(false);
     const [isSpeaker, setIsSpeaker] = useState(false);
+    const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
 
     const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
     const localStreamRef = useRef<MediaStream | null>(null);
     const durationIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const callIdRef = useRef<string | null>(null);
+    const clientCallIdRef = useRef<string | null>(null);
     const iceServersRef = useRef<RTCIceServer[]>(WEBRTC_CONFIG.iceServers);
     const pendingIceCandidatesRef = useRef<RTCIceCandidateInit[]>([]);
 
@@ -58,11 +62,13 @@ export const useCall = ({ bookingId, currentUserId, onIncomingCall }: UseCallOpt
 
         // Stop InCallManager audio session
         InCallManager?.stop();
+        InCallManager?.stopRingtone();
 
         setCallDuration(0);
         setIsMuted(false);
         setIsSpeaker(false);
         pendingIceCandidatesRef.current = [];
+        setRemoteStream(null);
     }, []);
 
     // Create a peer connection
@@ -74,11 +80,22 @@ export const useCall = ({ bookingId, currentUserId, onIncomingCall }: UseCallOpt
             const pc = new RTCPeerConnection({ iceServers: servers });
 
             (pc as any).addEventListener('icecandidate', (event: any) => {
-                if (event.candidate && callIdRef.current && socket?.connected) {
-                    socket.emit('call:ice-candidate', {
-                        callId: callIdRef.current,
-                        candidate: event.candidate.toJSON(),
-                    });
+                if (event.candidate) {
+                    if ((callIdRef.current || clientCallIdRef.current) && socket?.connected) {
+                        socket.emit('call:ice-candidate', {
+                            callId: callIdRef.current,
+                            clientCallId: clientCallIdRef.current,
+                            candidate: event.candidate.toJSON(),
+                        });
+                    } else {
+                        pendingIceCandidatesRef.current.push(event.candidate.toJSON());
+                    }
+                }
+            });
+
+            (pc as any).addEventListener('track', (event: any) => {
+                if (event.streams && event.streams[0]) {
+                    setRemoteStream(event.streams[0]);
                 }
             });
 
@@ -140,6 +157,8 @@ export const useCall = ({ bookingId, currentUserId, onIncomingCall }: UseCallOpt
                 pc.addTrack(track, stream as any);
             });
 
+            clientCallIdRef.current = uuidv4();
+
             // Create offer
             const offer = await pc.createOffer({});
             await pc.setLocalDescription(offer);
@@ -148,8 +167,18 @@ export const useCall = ({ bookingId, currentUserId, onIncomingCall }: UseCallOpt
 
             socket.emit('call:initiate', {
                 bookingId,
+                clientCallId: clientCallIdRef.current,
                 offer: pc.localDescription,
             });
+            
+            // Process any ICE candidates buffered before clientCallId was set
+            while (pendingIceCandidatesRef.current.length > 0) {
+                const candidate = pendingIceCandidatesRef.current.shift();
+                socket.emit('call:ice-candidate', {
+                    clientCallId: clientCallIdRef.current,
+                    candidate,
+                });
+            }
         } catch (error) {
             console.error('[Call] Error initiating call:', error);
             cleanupCall();
@@ -181,7 +210,6 @@ export const useCall = ({ bookingId, currentUserId, onIncomingCall }: UseCallOpt
 
             try {
                 // 1. Fetch pending call data to get offer and iceServers
-                const { callApi } = await import('../api/client');
                 const response = await callApi.getPendingCall(incomingData.callId);
                 const pendingData = response.data?.data;
 
@@ -240,7 +268,6 @@ export const useCall = ({ bookingId, currentUserId, onIncomingCall }: UseCallOpt
     const rejectCall = useCallback(
         async (incomingCallId: string) => {
             try {
-                const { callApi } = await import('../api/client');
                 await callApi.rejectCall(incomingCallId);
             } catch (error) {
                 console.error('[Call] Error rejecting call via REST:', error);
@@ -258,17 +285,22 @@ export const useCall = ({ bookingId, currentUserId, onIncomingCall }: UseCallOpt
 
     // End the call
     const endCall = useCallback(async () => {
+        const socket = getSocket();
+        
         if (callIdRef.current) {
             try {
-                const { callApi } = await import('../api/client');
                 await callApi.endCall(callIdRef.current);
             } catch (error) {
                 console.error('[Call] Error ending call via REST:', error);
                 // Fallback
-                const socket = getSocket();
                 if (socket?.connected) {
                     socket.emit('call:end', { callId: callIdRef.current });
                 }
+            }
+        } else if (clientCallIdRef.current) {
+            // Cancel call before backend has returned callId
+            if (socket?.connected) {
+                socket.emit('call:cancel', { clientCallId: clientCallIdRef.current });
             }
         }
 
@@ -276,6 +308,7 @@ export const useCall = ({ bookingId, currentUserId, onIncomingCall }: UseCallOpt
         setCallState('ended');
         setCallId(null);
         callIdRef.current = null;
+        clientCallIdRef.current = null;
 
         // Reset to idle after a short delay
         setTimeout(() => setCallState('idle'), 2000);
@@ -306,10 +339,23 @@ export const useCall = ({ bookingId, currentUserId, onIncomingCall }: UseCallOpt
 
     // Socket event listeners
     useEffect(() => {
-        const handleCallInitiated = (data: { callId: string; iceServers?: RTCIceServer[] }) => {
+        const handleCallInitiated = (data: { callId: string; clientCallId?: string; iceServers?: RTCIceServer[] }) => {
             setCallId(data.callId);
             callIdRef.current = data.callId;
+            if (data.clientCallId) {
+                clientCallIdRef.current = data.clientCallId;
+            }
             if (data.iceServers) iceServersRef.current = data.iceServers;
+            
+            // If there were ICE candidates buffered, send them now
+            const socket = getSocket();
+            while (pendingIceCandidatesRef.current.length > 0 && socket?.connected) {
+                const candidate = pendingIceCandidatesRef.current.shift();
+                socket.emit('call:ice-candidate', {
+                    callId: data.callId,
+                    candidate,
+                });
+            }
         };
 
         const handleIncomingCall = (data: IncomingCallData) => {
@@ -363,45 +409,33 @@ export const useCall = ({ bookingId, currentUserId, onIncomingCall }: UseCallOpt
             }
         };
 
-        const handleCallRejected = () => {
+        const handleTerminalEvent = () => {
             cleanupCall();
             setCallState('ended');
             setCallId(null);
             callIdRef.current = null;
+            clientCallIdRef.current = null;
             setTimeout(() => setCallState('idle'), 2000);
-        };
-
-        const handleCallEnded = () => {
-            cleanupCall();
-            setCallState('ended');
-            setCallId(null);
-            callIdRef.current = null;
-            setTimeout(() => setCallState('idle'), 2000);
-        };
-
-        const handleCallMissed = () => {
-            cleanupCall();
-            setCallState('idle');
-            setCallId(null);
-            callIdRef.current = null;
         };
 
         addSocketListener('call:initiated', handleCallInitiated);
         addSocketListener('call:incoming', handleIncomingCall);
         addSocketListener('call:answered', handleCallAnswered);
         addSocketListener('call:ice-candidate', handleIceCandidate);
-        addSocketListener('call:rejected', handleCallRejected);
-        addSocketListener('call:ended', handleCallEnded);
-        addSocketListener('call:missed', handleCallMissed);
+        addSocketListener('call:rejected', handleTerminalEvent);
+        addSocketListener('call:ended', handleTerminalEvent);
+        addSocketListener('call:missed', handleTerminalEvent);
+        addSocketListener('call:cancelled', handleTerminalEvent);
 
         return () => {
             removeSocketListener('call:initiated', handleCallInitiated);
             removeSocketListener('call:incoming', handleIncomingCall);
             removeSocketListener('call:answered', handleCallAnswered);
             removeSocketListener('call:ice-candidate', handleIceCandidate);
-            removeSocketListener('call:rejected', handleCallRejected);
-            removeSocketListener('call:ended', handleCallEnded);
-            removeSocketListener('call:missed', handleCallMissed);
+            removeSocketListener('call:rejected', handleTerminalEvent);
+            removeSocketListener('call:ended', handleTerminalEvent);
+            removeSocketListener('call:missed', handleTerminalEvent);
+            removeSocketListener('call:cancelled', handleTerminalEvent);
             cleanupCall();
         };
     }, [bookingId, onIncomingCall, cleanupCall, endCall, startDurationTimer]);
@@ -418,5 +452,6 @@ export const useCall = ({ bookingId, currentUserId, onIncomingCall }: UseCallOpt
         endCall,
         toggleMute,
         toggleSpeaker,
+        remoteStream,
     };
 };
