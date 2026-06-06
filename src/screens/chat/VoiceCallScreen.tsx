@@ -52,16 +52,17 @@ const VoiceCallScreen = () => {
             if (callState === 'idle') {
                 initiateCall();
             }
-        } else {
+        } else if (!hasAnsweredRef.current) {
             // The IncomingCallOverlay routes here after the user accepts.
             // We shouldn't wait for callState === 'ringing' because this screen's local hook starts as 'idle'.
             const incomingData = route.params as any;
-            if (incomingData._incomingCallData && !hasAnsweredRef.current) {
+            if (incomingData._incomingCallData) {
                 hasAnsweredRef.current = true;
                 answerCall(incomingData._incomingCallData);
             }
         }
-    }, [isIncoming, callState, initiateCall, answerCall, route.params]);
+    }, [isIncoming]);
+
 
     // Handle end/disconnect
     useEffect(() => {

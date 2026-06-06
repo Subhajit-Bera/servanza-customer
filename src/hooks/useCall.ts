@@ -5,7 +5,10 @@ import InCallManager from 'react-native-incall-manager';
 import { RTCPeerConnection, RTCIceCandidate, RTCSessionDescription, mediaDevices, MediaStream } from 'react-native-webrtc';
 import { PermissionsAndroid, Platform } from 'react-native';
 import { callApi } from '../api/client';
-import { v4 as uuidv4 } from 'uuid';
+
+/** Generates a unique-enough call ID without requiring Web Crypto API */
+const generateCallId = () =>
+    'call_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 11);
 
 export type CallState = 'idle' | 'calling' | 'ringing' | 'connected' | 'ended';
 
@@ -157,7 +160,7 @@ export const useCall = ({ bookingId, currentUserId, onIncomingCall }: UseCallOpt
                 pc.addTrack(track, stream as any);
             });
 
-            clientCallIdRef.current = uuidv4();
+            clientCallIdRef.current = generateCallId();
 
             // Create offer
             const offer = await pc.createOffer({});
@@ -219,9 +222,16 @@ export const useCall = ({ bookingId, currentUserId, onIncomingCall }: UseCallOpt
 
                 const offer = pendingData.offer;
                 const iceServers = pendingData.iceServers || WEBRTC_CONFIG.iceServers;
+                const callerIceCandidates = pendingData.callerIceCandidates || [];
 
                 const stream = await mediaDevices.getUserMedia({ audio: true, video: false });
                 localStreamRef.current = stream as any;
+
+                // Set callIdRef BEFORE creating peer connection so that the
+                // icecandidate handler can send candidates to the server
+                // instead of buffering them (which causes silent audio).
+                callIdRef.current = incomingData.callId;
+                setCallId(incomingData.callId);
 
                 iceServersRef.current = iceServers;
                 const pc = createPeerConnection(iceServers);
@@ -232,7 +242,7 @@ export const useCall = ({ bookingId, currentUserId, onIncomingCall }: UseCallOpt
 
                 await pc.setRemoteDescription(new RTCSessionDescription(offer as any));
 
-                // Process queued ICE candidates
+                // Process queued ICE candidates (from socket listener)
                 while (pendingIceCandidatesRef.current.length > 0) {
                     const candidate = pendingIceCandidatesRef.current.shift();
                     if (candidate) {
@@ -244,10 +254,19 @@ export const useCall = ({ bookingId, currentUserId, onIncomingCall }: UseCallOpt
                     }
                 }
 
+                // Apply caller's ICE candidates fetched from the server
+                // (these were sent before our socket listener was active)
+                for (const candidate of callerIceCandidates) {
+                    try {
+                        await pc.addIceCandidate(new RTCIceCandidate(candidate));
+                    } catch (e) {
+                        console.error('[Call] Error adding caller ICE candidate:', e);
+                    }
+                }
+
                 const answer = await pc.createAnswer();
                 await pc.setLocalDescription(answer);
 
-                setCallId(incomingData.callId);
                 setCallState('connected');
                 startDurationTimer();
 
@@ -287,23 +306,10 @@ export const useCall = ({ bookingId, currentUserId, onIncomingCall }: UseCallOpt
     const endCall = useCallback(async () => {
         const socket = getSocket();
         
-        if (callIdRef.current) {
-            try {
-                await callApi.endCall(callIdRef.current);
-            } catch (error) {
-                console.error('[Call] Error ending call via REST:', error);
-                // Fallback
-                if (socket?.connected) {
-                    socket.emit('call:end', { callId: callIdRef.current });
-                }
-            }
-        } else if (clientCallIdRef.current) {
-            // Cancel call before backend has returned callId
-            if (socket?.connected) {
-                socket.emit('call:cancel', { clientCallId: clientCallIdRef.current });
-            }
-        }
+        const currentCallId = callIdRef.current;
+        const currentClientCallId = clientCallIdRef.current;
 
+        // Clean up immediately to prevent UI hang
         cleanupCall();
         setCallState('ended');
         setCallId(null);
@@ -312,7 +318,26 @@ export const useCall = ({ bookingId, currentUserId, onIncomingCall }: UseCallOpt
 
         // Reset to idle after a short delay
         setTimeout(() => setCallState('idle'), 2000);
+
+        // Then notify server (fire-and-forget)
+        if (currentCallId) {
+            try {
+                await callApi.endCall(currentCallId);
+            } catch (error) {
+                console.error('[Call] Error ending call via REST:', error);
+                // Fallback
+                if (socket?.connected) {
+                    socket.emit('call:end', { callId: currentCallId });
+                }
+            }
+        } else if (currentClientCallId) {
+            // Cancel call before backend has returned callId
+            if (socket?.connected) {
+                socket.emit('call:cancel', { clientCallId: currentClientCallId });
+            }
+        }
     }, [cleanupCall]);
+
 
     // Toggle mute
     const toggleMute = useCallback(() => {

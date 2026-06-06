@@ -214,9 +214,16 @@ export const setupNotificationListeners = (): () => void => {
             });
         }
 
-        // Notify callbacks
-        if (remoteMessage.data) {
-            notifyCallbacks(remoteMessage.data as unknown as PushNotificationData);
+        // Do NOT notify callbacks here, as it acts like an auto-tap and force-navigates.
+        // We will handle foreground notification taps via expo-notifications listener below.
+    });
+
+    // Handle taps on foreground local notifications
+    const foregroundTapSubscription = Notifications.addNotificationResponseReceivedListener(response => {
+        console.log('[Notifications] Foreground notification tapped:', response);
+        const data = response.notification.request.content.data;
+        if (data) {
+            notifyCallbacks(data as unknown as PushNotificationData);
         }
     });
 
@@ -250,6 +257,7 @@ export const setupNotificationListeners = (): () => void => {
     return () => {
         unsubscribeForeground();
         unsubscribeTokenRefresh();
+        foregroundTapSubscription.remove();
     };
 };
 
