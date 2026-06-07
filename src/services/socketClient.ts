@@ -64,6 +64,9 @@ export const connectSocket = async (): Promise<Socket | null> => {
             auth: {
                 token,
             },
+            query: {
+                supportsAck: 'true'
+            },
             autoConnect: true,
             reconnection: true,
             reconnectionAttempts: MAX_RECONNECT_ATTEMPTS,
@@ -108,13 +111,30 @@ export const connectSocket = async (): Promise<Socket | null> => {
             notifyListeners('buddy:location:update', data);
         });
 
+        const processedEvents = new Set<string>();
+        const dedupeAndAck = (data: any, ack?: any) => {
+            if (typeof ack === 'function') {
+                ack({ success: true, timestamp: Date.now() });
+            }
+            if (data?.eventId) {
+                if (processedEvents.has(data.eventId)) return false;
+                processedEvents.add(data.eventId);
+                if (processedEvents.size > 100) {
+                    processedEvents.delete(Array.from(processedEvents)[0]);
+                }
+            }
+            return true;
+        };
+
         // Listen for booking status updates
-        socket.on('booking:updated', (data) => {
+        socket.on('booking:updated', (data, ack) => {
+            if (!dedupeAndAck(data, ack)) return;
             console.log('[Socket] Booking updated:', data);
             notifyListeners('booking:updated', data);
         });
 
-        socket.on('booking:status:changed', (data) => {
+        socket.on('booking:status:changed', (data, ack) => {
+            if (!dedupeAndAck(data, ack)) return;
             console.log('[Socket] Booking status changed:', data);
             notifyListeners('booking:status:changed', data);
         });
