@@ -18,8 +18,9 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import dayjs from 'dayjs';
 import { COLORS, TYPOGRAPHY, SHADOWS, SPACING, BORDER_RADIUS, formatCurrency } from '../../theme';
-import { orderApi } from '../../api/client';
 import BookingListSkeleton from '../../components/skeletons/BookingListSkeleton';
+import { ServiceImage } from '../../components/ServiceImage';
+import { orderApi } from '../../api/client';
 import type { BookingsStackParamList } from '../../navigation/MainNavigator';
 
 type MyBookingsNavigationProp = StackNavigationProp<BookingsStackParamList, 'MyBookings'>;
@@ -189,9 +190,9 @@ const MyBookingsScreen: React.FC = () => {
                         {hasMultiple ? (
                             <View style={styles.multiImageWrapper}>
                                 {items.slice(0, 2).map((item: any, index: number) => (
-                                    <Image
+                                    <ServiceImage
                                         key={index}
-                                        source={{ uri: item.imageUrl }}
+                                        url={item.imageUrl}
                                         style={[
                                             styles.serviceImage,
                                             styles.overlappingImage,
@@ -206,8 +207,8 @@ const MyBookingsScreen: React.FC = () => {
                                 )}
                             </View>
                         ) : (
-                            <Image 
-                                source={{ uri: items[0]?.imageUrl || bookings[0]?.service?.imageUrl }} 
+                            <ServiceImage 
+                                url={items[0]?.imageUrl || bookings[0]?.service?.imageUrl} 
                                 style={styles.serviceImage} 
                             />
                         )}

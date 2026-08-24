@@ -19,6 +19,7 @@ interface ExtendedCartState {
         code: string;
         discountType: 'PERCENTAGE' | 'FIXED';
         discountValue: number;
+        maxDiscount?: number;
         discountAmount: number;
     } | null;
     couponError: string | null;
@@ -56,6 +57,10 @@ const calculateTotals = (items: CartItem[], appliedCoupon: ExtendedCartState['ap
             discountAmount = Math.round(subtotal * (appliedCoupon.discountValue / 100));
         } else {
             discountAmount = appliedCoupon.discountValue;
+        }
+        // Apply max discount cap for percentage coupons
+        if (appliedCoupon.maxDiscount) {
+            discountAmount = Math.min(discountAmount, appliedCoupon.maxDiscount);
         }
         // Make sure discount doesn't exceed subtotal
         discountAmount = Math.min(discountAmount, subtotal);
@@ -186,13 +191,15 @@ const cartSlice = createSlice({
             code: string;
             discountType: 'PERCENTAGE' | 'FIXED';
             discountValue: number;
+            maxDiscount?: number;
         }>) => {
-            const { code, discountType, discountValue } = action.payload;
+            const { code, discountType, discountValue, maxDiscount } = action.payload;
 
             state.appliedCoupon = {
                 code,
                 discountType,
                 discountValue,
+                maxDiscount,
                 discountAmount: 0, // Will be calculated
             };
             state.couponError = null;

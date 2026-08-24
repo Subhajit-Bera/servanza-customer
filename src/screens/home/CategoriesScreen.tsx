@@ -15,6 +15,7 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { COLORS, TYPOGRAPHY, SHADOWS, SPACING, BORDER_RADIUS } from '../../theme';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { fetchServices, fetchCategories, setSelectedCategory } from '../../store/slices/servicesSlice';
+import { ServiceImage } from '../../components/ServiceImage';
 import { addToCart } from '../../store/slices/cartSlice';
 import CategoriesSkeleton from '../../components/skeletons/CategoriesSkeleton';
 import type { HomeStackParamList } from '../../navigation/MainNavigator';
@@ -87,7 +88,7 @@ const CategoriesScreen: React.FC = () => {
         >
             <View style={styles.serviceImageContainer}>
                 {item.imageUrl ? (
-                    <Image source={{ uri: item.imageUrl }} style={styles.serviceImage} />
+                    <ServiceImage url={item.imageUrl} style={styles.serviceImage} />
                 ) : (
                     <View style={styles.servicePlaceholder}>
                         <Ionicons name="construct" size={32} color={COLORS.lightGray} />

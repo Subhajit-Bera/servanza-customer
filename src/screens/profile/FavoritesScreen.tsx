@@ -16,6 +16,7 @@ import { COLORS, TYPOGRAPHY, SPACING, BORDER_RADIUS, SHADOWS } from '../../theme
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { fetchFavorites, removeFromFavorites } from '../../store/slices/favoritesSlice';
 import { addToCart } from '../../store/slices/cartSlice';
+import { ServiceImage } from '../../components/ServiceImage';
 import type { Favorite } from '../../types';
 
 const FavoritesScreen: React.FC = () => {
@@ -58,7 +59,7 @@ const FavoritesScreen: React.FC = () => {
         >
             <View style={styles.imageContainer}>
                 {item.service?.imageUrl ? (
-                    <Image source={{ uri: item.service.imageUrl }} style={styles.image} />
+                    <ServiceImage url={item.service.imageUrl} style={styles.image} />
                 ) : (
                     <View style={styles.imagePlaceholder}>
                         <Ionicons name="construct" size={32} color={COLORS.lightGray} />

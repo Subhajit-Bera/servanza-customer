@@ -20,6 +20,7 @@ import { fetchServices, setSearchQuery } from '../../store/slices/servicesSlice'
 import { addToCart } from '../../store/slices/cartSlice';
 import { useDebounce } from '../../hooks/useDebounce';
 import CategoriesSkeleton from '../../components/skeletons/CategoriesSkeleton';
+import { ServiceImage } from '../../components/ServiceImage';
 import type { HomeStackParamList } from '../../navigation/MainNavigator';
 import type { Service } from '../../types';
 
@@ -116,7 +117,7 @@ const SearchScreen: React.FC = () => {
         >
             <View style={styles.serviceImageContainer}>
                 {item.imageUrl ? (
-                    <Image source={{ uri: item.imageUrl }} style={styles.serviceImage} />
+                    <ServiceImage url={item.imageUrl} style={styles.serviceImage} />
                 ) : (
                     <View style={styles.servicePlaceholder}>
                         <Ionicons name="construct" size={28} color={COLORS.lightGray} />
@@ -150,7 +151,7 @@ const SearchScreen: React.FC = () => {
         >
             <View style={styles.serviceImageContainer}>
                 {item.imageUrl ? (
-                    <Image source={{ uri: item.imageUrl }} style={styles.serviceImage} />
+                    <ServiceImage url={item.imageUrl} style={styles.serviceImage} />
                 ) : (
                     <View style={styles.servicePlaceholder}>
                         <Ionicons name="construct" size={28} color={COLORS.lightGray} />

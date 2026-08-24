@@ -236,8 +236,8 @@ export const paymentApi = {
 
 // Coupon API
 export const couponApi = {
-    validateCoupon: (code: string) =>
-        apiClient.post('/coupons/validate', { code }),
+    validateCoupon: (code: string, subtotal: number) =>
+        apiClient.post('/coupons/validate', { code, subtotal }),
     getAvailableCoupons: () =>
         apiClient.get('/coupons/available'),
 };

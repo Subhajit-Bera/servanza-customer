@@ -22,6 +22,7 @@ import { COLORS, TYPOGRAPHY, SHADOWS, SPACING, BORDER_RADIUS, formatCurrency } f
 import HomeScreenSkeleton from '../../components/skeletons/HomeScreenSkeleton';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { fetchServices, fetchCategories } from '../../store/slices/servicesSlice';
+import { ServiceImage } from '../../components/ServiceImage';
 import { addToCart } from '../../store/slices/cartSlice';
 import { promotionsApi } from '../../api/client';
 import type { HomeStackParamList } from '../../navigation/MainNavigator';
@@ -180,10 +181,10 @@ const HomeScreen: React.FC = () => {
             activeOpacity={0.9}
             onPress={() => handlePromoPress(item)}
         >
-            <Image
-                source={{ uri: item.imageUrl }}
+            <ServiceImage
+                url={item.imageUrl}
                 style={styles.promoImage}
-                resizeMode="cover"
+                contentFit="cover"
             />
             {/* Gradient overlay */}
             <View style={styles.promoOverlay}>
@@ -223,7 +224,7 @@ const HomeScreen: React.FC = () => {
         >
             <View style={styles.categoryIcon}>
                 {item.icon ? (
-                    <Image source={{ uri: item.icon }} style={styles.categoryIconImage} />
+                    <ServiceImage url={item.icon} style={styles.categoryIconImage} />
                 ) : (
                     <Ionicons name="grid" size={28} color={COLORS.primary} />
                 )}
@@ -242,7 +243,7 @@ const HomeScreen: React.FC = () => {
         >
             <View style={styles.serviceImageContainer}>
                 {item.imageUrl ? (
-                    <Image source={{ uri: item.imageUrl }} style={styles.serviceImage} />
+                    <ServiceImage url={item.imageUrl} style={styles.serviceImage} />
                 ) : (
                     <View style={styles.servicePlaceholder}>
                         <Ionicons name="construct" size={40} color={COLORS.border} />

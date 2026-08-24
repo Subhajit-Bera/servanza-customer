@@ -21,6 +21,7 @@ import { useBookingStatus } from '../../hooks/useSocket';
 import type { RootState } from '../../store';
 import { fetchBookingById, cancelBooking } from '../../store/slices/bookingsSlice';
 import BookingDetailSkeleton from '../../components/skeletons/BookingDetailSkeleton';
+import { ServiceImage } from '../../components/ServiceImage';
 import type { BookingsStackParamList } from '../../navigation/MainNavigator';
 import type { BookingStatus } from '../../types';
 
@@ -329,7 +330,7 @@ const BookingDetailScreen: React.FC = () => {
                     {metadataItems.length > 0 ? (
                         metadataItems.map((item: any, index: number) => (
                             <View key={index} style={styles.serviceListItem}>
-                                <Image source={{ uri: item.imageUrl }} style={styles.serviceListImage} />
+                                <ServiceImage url={item.imageUrl} style={styles.serviceListImage} />
                                 <View style={styles.serviceListDetails}>
                                     <Text style={styles.serviceItemName}>{item.title}</Text>
                                     <Text style={styles.serviceItemQty}>Qty: {item.quantity}</Text>
@@ -342,7 +343,7 @@ const BookingDetailScreen: React.FC = () => {
                     ) : (
                         <View style={styles.serviceListItem}>
                             {booking.service?.imageUrl ? (
-                                <Image source={{ uri: booking.service.imageUrl }} style={styles.serviceListImage} />
+                                <ServiceImage url={booking.service.imageUrl} style={styles.serviceListImage} />
                             ) : (
                                 <View style={[styles.serviceListImage, { backgroundColor: COLORS.primaryLight, justifyContent: 'center', alignItems: 'center' }]}>
                                     <Ionicons name="construct" size={24} color={COLORS.primary} />

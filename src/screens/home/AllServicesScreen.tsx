@@ -18,6 +18,7 @@ import { COLORS, TYPOGRAPHY, SHADOWS, SPACING, BORDER_RADIUS, formatCurrency } f
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { fetchServices, fetchCategories } from '../../store/slices/servicesSlice';
 import { addToCart } from '../../store/slices/cartSlice';
+import { ServiceImage } from '../../components/ServiceImage';
 import type { HomeStackParamList } from '../../navigation/MainNavigator';
 import type { Service, Category } from '../../types';
 
@@ -158,7 +159,7 @@ const AllServicesScreen: React.FC = () => {
         >
             <View style={styles.serviceImageContainer}>
                 {service.imageUrl ? (
-                    <Image source={{ uri: service.imageUrl }} style={styles.serviceImage} />
+                    <ServiceImage url={service.imageUrl} style={styles.serviceImage} />
                 ) : (
                     <View style={styles.servicePlaceholder}>
                         <Ionicons name="construct" size={40} color={COLORS.border} />

@@ -14,6 +14,7 @@ import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { COLORS, TYPOGRAPHY, SHADOWS, SPACING, BORDER_RADIUS } from '../../theme';
 import apiClient from '../../api/client';
+import { ServiceImage } from '../../components/ServiceImage';
 import { ProfileStackParamList } from '../../navigation/MainNavigator';
 
 type MyReviewsNavigationProp = StackNavigationProp<ProfileStackParamList, 'MyReviews'>;
@@ -78,7 +79,7 @@ const MyReviewsScreen: React.FC = () => {
             <View style={styles.reviewHeader}>
                 <View style={styles.serviceInfo}>
                     {item.service?.imageUrl ? (
-                        <Image source={{ uri: item.service.imageUrl }} style={styles.serviceImage} />
+                        <ServiceImage url={item.service.imageUrl} style={styles.serviceImage} />
                     ) : (
                         <View style={styles.serviceImagePlaceholder}>
                             <Ionicons name="construct-outline" size={20} color={COLORS.textLight} />

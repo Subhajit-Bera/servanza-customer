@@ -21,6 +21,7 @@ import { couponApi } from '../../api/client';
 import { useAuthGate } from '../../hooks/useAuthGate';
 import type { CartStackParamList } from '../../navigation/MainNavigator';
 import type { CartItem } from '../../types';
+import { ServiceImage } from '../../components/ServiceImage';
 
 type CartNavigationProp = StackNavigationProp<CartStackParamList, 'Cart'>;
 
@@ -75,7 +76,7 @@ const CartScreen: React.FC = () => {
         dispatch(clearCouponError());
 
         try {
-            const { data } = await couponApi.validateCoupon(couponCode.trim().toUpperCase());
+            const { data } = await couponApi.validateCoupon(couponCode.trim().toUpperCase(), subtotal);
             const coupon = data.data || data;
 
             if (coupon && coupon.isActive) {
@@ -88,6 +89,7 @@ const CartScreen: React.FC = () => {
                     code: coupon.code,
                     discountType: coupon.discountType,
                     discountValue: coupon.discountValue,
+                    maxDiscount: coupon.maxDiscount,
                 }));
                 setCouponCode('');
             } else {
@@ -218,7 +220,7 @@ const CartScreen: React.FC = () => {
 
                 <View style={styles.itemImageContainer}>
                     {item.service.imageUrl ? (
-                        <Image source={{ uri: item.service.imageUrl }} style={styles.itemImage} />
+                        <ServiceImage url={item.service.imageUrl} style={styles.itemImage} />
                     ) : (
                         <View style={styles.itemPlaceholder}>
                             <Ionicons name="construct" size={24} color={COLORS.textLight} />
@@ -345,7 +347,7 @@ const CartScreen: React.FC = () => {
                     >
                         <View style={styles.serviceImageContainer}>
                             {item.imageUrl ? (
-                                <Image source={{ uri: item.imageUrl }} style={styles.serviceImage} />
+                                <ServiceImage url={item.imageUrl} style={styles.serviceImage} />
                             ) : (
                                 <View style={styles.servicePlaceholder}>
                                     <Ionicons name="construct" size={24} color={COLORS.lightGray} />

@@ -114,7 +114,8 @@ const ReviewScreen: React.FC = () => {
                         {[1, 2, 3, 4, 5].map((star) => (
                             <TouchableOpacity
                                 key={star}
-                                onPress={() => setRating(star)}
+                                onPress={() => !hasExistingRating && setRating(star)}
+                                disabled={hasExistingRating}
                                 style={styles.starButton}
                             >
                                 <Ionicons
@@ -139,7 +140,7 @@ const ReviewScreen: React.FC = () => {
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Tell us more (optional)</Text>
                     <TextInput
-                        style={styles.commentInput}
+                        style={[styles.commentInput, hasExistingComment && { backgroundColor: COLORS.lightGray, color: COLORS.darkGray }]}
                         placeholder="Share your experience with the service..."
                         placeholderTextColor={COLORS.mediumGray}
                         value={comment}
@@ -147,6 +148,7 @@ const ReviewScreen: React.FC = () => {
                         multiline
                         numberOfLines={5}
                         textAlignVertical="top"
+                        editable={!hasExistingComment}
                     />
                 </View>
 
@@ -160,8 +162,11 @@ const ReviewScreen: React.FC = () => {
                                 style={[
                                     styles.tag,
                                     comment.includes(tag) && styles.tagActive,
+                                    hasExistingComment && { opacity: 0.5 }
                                 ]}
+                                disabled={hasExistingComment}
                                 onPress={() => {
+                                    if (hasExistingComment) return;
                                     if (comment.includes(tag)) {
                                         setComment(comment.replace(tag + ' ', ''));
                                     } else {
