@@ -109,7 +109,7 @@ const ServiceDetailsScreen: React.FC = () => {
                 quantity: 1,
                 selectedOptions: selectedVariantId ? { variantId: selectedVariantId } : undefined
             }));
-            navigation.getParent()?.navigate('CartTab');
+            navigation.getParent()?.navigate('CartTab', { screen: 'Cart' });
         }
     };
 
@@ -531,7 +531,7 @@ const ServiceDetailsScreen: React.FC = () => {
                             </View>
                             <TouchableOpacity
                                 style={styles.bookButton}
-                                onPress={() => navigation.getParent()?.navigate('CartTab')}
+                                onPress={() => navigation.getParent()?.navigate('CartTab', { screen: 'Cart' })}
                             >
                                 <Text style={styles.bookButtonText}>View Cart</Text>
                             </TouchableOpacity>

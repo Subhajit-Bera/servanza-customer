@@ -6,10 +6,11 @@ import {
     TouchableOpacity,
     Animated,
     ScrollView,
+    BackHandler,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp, CommonActions } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, TYPOGRAPHY, SHADOWS, SPACING, BORDER_RADIUS } from '../../theme';
@@ -51,13 +52,42 @@ const BookingConfirmationScreen: React.FC = () => {
         ]).start();
     }, []);
 
+    // Intercept hardware/header back to go to fresh Cart
+    useEffect(() => {
+        const onBackPress = () => {
+            navigation.dispatch(
+                CommonActions.reset({
+                    index: 0,
+                    routes: [{ name: 'Cart' }],
+                })
+            );
+            return true;
+        };
+        const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+        return () => sub.remove();
+    }, [navigation]);
+
     const handleViewBooking = () => {
+        // Reset CartStack to Cart, then navigate to BookingsTab
+        navigation.dispatch(
+            CommonActions.reset({
+                index: 0,
+                routes: [{ name: 'Cart' }],
+            })
+        );
         navigation.getParent()?.navigate('BookingsTab', {
             screen: 'MyBookings',
         });
     };
 
     const handleGoHome = () => {
+        // Reset CartStack to Cart, then navigate to HomeTab
+        navigation.dispatch(
+            CommonActions.reset({
+                index: 0,
+                routes: [{ name: 'Cart' }],
+            })
+        );
         navigation.getParent()?.navigate('HomeTab');
     };
 

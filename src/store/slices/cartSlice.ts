@@ -20,6 +20,7 @@ interface ExtendedCartState {
         discountType: 'PERCENTAGE' | 'FIXED';
         discountValue: number;
         maxDiscount?: number;
+        minOrderAmount?: number;
         discountAmount: number;
     } | null;
     couponError: string | null;
@@ -36,7 +37,7 @@ const initialState: ExtendedCartState = {
 };
 
 // Helper to resolve item price (variant-aware)
-const getItemPrice = (item: CartItem): number => {
+export const getItemPrice = (item: CartItem): number => {
     const variantId = item.selectedOptions?.variantId;
     if (variantId) {
         const metadata = item.service.metadata as any;
@@ -46,31 +47,36 @@ const getItemPrice = (item: CartItem): number => {
     return item.service.basePrice;
 };
 
-const calculateTotals = (items: CartItem[], appliedCoupon: ExtendedCartState['appliedCoupon'] = null) => {
+export const calculateTotals = (items: CartItem[], appliedCoupon: ExtendedCartState['appliedCoupon'] = null) => {
     const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
     const subtotal = items.reduce((sum, item) => sum + (getItemPrice(item) * item.quantity), 0);
 
     // Calculate coupon discount
     let discountAmount = 0;
     if (appliedCoupon) {
-        if (appliedCoupon.discountType === 'PERCENTAGE') {
-            discountAmount = Math.round(subtotal * (appliedCoupon.discountValue / 100));
+        // Suppress discount if the subtotal drops below the required minimum
+        if (appliedCoupon.minOrderAmount && subtotal < appliedCoupon.minOrderAmount) {
+            discountAmount = 0;
         } else {
-            discountAmount = appliedCoupon.discountValue;
+            if (appliedCoupon.discountType === 'PERCENTAGE') {
+                discountAmount = Math.round(subtotal * (appliedCoupon.discountValue / 100));
+            } else {
+                discountAmount = appliedCoupon.discountValue;
+            }
+            // Apply max discount cap for percentage coupons
+            if (appliedCoupon.maxDiscount) {
+                discountAmount = Math.min(discountAmount, appliedCoupon.maxDiscount);
+            }
+            // Make sure discount doesn't exceed subtotal
+            discountAmount = Math.min(discountAmount, subtotal);
         }
-        // Apply max discount cap for percentage coupons
-        if (appliedCoupon.maxDiscount) {
-            discountAmount = Math.min(discountAmount, appliedCoupon.maxDiscount);
-        }
-        // Make sure discount doesn't exceed subtotal
-        discountAmount = Math.min(discountAmount, subtotal);
     }
 
     const discountedSubtotal = subtotal - discountAmount;
     const tax = Math.round(discountedSubtotal * TAX_RATE);
     const total = discountedSubtotal + tax;
 
-    return { totalItems, subtotal, tax, total, discountAmount };
+    return { totalItems, subtotal, tax, total, discountAmount, isCouponApplicable: !appliedCoupon || !appliedCoupon.minOrderAmount || subtotal >= appliedCoupon.minOrderAmount };
 };
 
 // Helper to persist cart to AsyncStorage
@@ -192,14 +198,16 @@ const cartSlice = createSlice({
             discountType: 'PERCENTAGE' | 'FIXED';
             discountValue: number;
             maxDiscount?: number;
+            minOrderAmount?: number;
         }>) => {
-            const { code, discountType, discountValue, maxDiscount } = action.payload;
+            const { code, discountType, discountValue, maxDiscount, minOrderAmount } = action.payload;
 
             state.appliedCoupon = {
                 code,
                 discountType,
                 discountValue,
                 maxDiscount,
+                minOrderAmount,
                 discountAmount: 0, // Will be calculated
             };
             state.couponError = null;

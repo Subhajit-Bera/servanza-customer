@@ -12,20 +12,18 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation, useIsFocused, useRoute, RouteProp } from '@react-navigation/native';
+import { useNavigation, useIsFocused, useRoute, RouteProp, CommonActions } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import dayjs from 'dayjs';
 import { COLORS, TYPOGRAPHY, SHADOWS, SPACING, BORDER_RADIUS, formatCurrency } from '../../theme';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { fetchAddresses } from '../../store/slices/authSlice';
-import { createBooking } from '../../store/slices/bookingsSlice';
-import { clearCart, refreshCartPrices, removeMultipleFromCart } from '../../store/slices/cartSlice';
+import { clearCart, refreshCartPrices, removeMultipleFromCart, calculateTotals } from '../../store/slices/cartSlice';
 import { requireLocationPermission } from '../../hooks/useLocation';
 import { bookingApi, orderApi } from '../../api/client';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { CartStackParamList } from '../../navigation/MainNavigator';
-import type { Address } from '../../types';
 
 type BookingFormNavigationProp = StackNavigationProp<CartStackParamList, 'BookingForm'>;
 type BookingFormRouteProp = RouteProp<CartStackParamList, 'BookingForm'>;
@@ -53,21 +51,9 @@ const BookingFormScreen: React.FC = () => {
         ? allItems.filter(item => selectedIds.includes(item.service.id)) 
         : allItems;
         
-    // Variant-aware price resolution
-    const getItemPrice = (item: typeof items[0]): number => {
-        const variantId = item.selectedOptions?.variantId;
-        if (variantId) {
-            const metadata = item.service.metadata as any;
-            const variant = metadata?.variants?.[variantId];
-            if (variant?.price !== undefined) return variant.price;
-        }
-        return item.service.basePrice;
-    };
-        
-    const subtotal = items.reduce((sum, item) => sum + getItemPrice(item) * item.quantity, 0);
-    const tax = Math.round(subtotal * 0.18);
-    const couponDiscount = appliedCoupon?.discountAmount || 0;
-    const total = subtotal + tax - couponDiscount;
+    // Use shared calculator to get scoped totals for the selected items
+    const { total, isCouponApplicable } = calculateTotals(items, appliedCoupon);
+    const effectiveCouponCode = isCouponApplicable ? appliedCoupon?.code : undefined;
 
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -151,6 +137,13 @@ const BookingFormScreen: React.FC = () => {
             setSelectedMinute(availMins[0] || 0);
         }
     }, [selectedDate]);
+
+    // Guard: if this screen is focused but has no matching cart items, go back to Cart
+    useEffect(() => {
+        if (isFocused && items.length === 0) {
+            navigation.replace('Cart');
+        }
+    }, [isFocused, items.length]);
 
     // Fetch addresses and refresh cart prices on mount
     useEffect(() => {
@@ -253,11 +246,10 @@ const BookingFormScreen: React.FC = () => {
                     await bookingApi.validateCart({
                         items: mappedItems,
                         total,
-                        couponCode: appliedCoupon?.code || undefined,
+                        couponCode: effectiveCouponCode,
                     });
 
                     // Create an order containing all cart items
-                    const firstItem = items[0];
                     const scheduleInfo = bookingType === 'IMMEDIATE'
                         ? {
                             scheduledStart: new Date().toISOString(),
@@ -275,7 +267,7 @@ const BookingFormScreen: React.FC = () => {
                         paymentMethod: 'PREPAID',
                         notes: specialInstructions,
                         contactPhone: trimmedPhone,
-                        couponCode: appliedCoupon?.code || undefined,
+                        couponCode: effectiveCouponCode,
                     };
 
                     const response = await orderApi.createOrder(orderData);
@@ -296,11 +288,23 @@ const BookingFormScreen: React.FC = () => {
                             ? 'Now (Immediate)'
                             : dayjs(selectedDate).format('DD MMM YYYY') + ` at ${String(selectedHour).padStart(2, '0')}:${String(selectedMinute).padStart(2, '0')}`;
                         
-                        navigation.navigate('BookingConfirmation', {
-                            bookingId: response.data.data.orderNumber, // Pass orderNumber as bookingId for display
-                            scheduledTime: scheduledTimeDisplay,
-                            address: selectedAddr?.formattedAddress || selectedAddr?.streetAddress || '',
-                        });
+                        // Reset CartStack to [Cart, BookingConfirmation] to prevent stale screens
+                        navigation.dispatch(
+                            CommonActions.reset({
+                                index: 1,
+                                routes: [
+                                    { name: 'Cart' },
+                                    {
+                                        name: 'BookingConfirmation',
+                                        params: {
+                                            bookingId: response.data.data.orderNumber,
+                                            scheduledTime: scheduledTimeDisplay,
+                                            address: selectedAddr?.formattedAddress || selectedAddr?.streetAddress || '',
+                                        },
+                                    },
+                                ],
+                            })
+                        );
                     } else {
                         Alert.alert('Booking Failed', 'Unable to create order. Please try again.');
                     }

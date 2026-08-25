@@ -1,11 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
     View,
     Text,
     StyleSheet,
     FlatList,
     TouchableOpacity,
-    Image,
     TextInput,
     ActivityIndicator,
     Alert,
@@ -16,7 +15,7 @@ import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { COLORS, TYPOGRAPHY, SHADOWS, SPACING, BORDER_RADIUS, formatCurrency } from '../../theme';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
-import { removeFromCart, updateQuantity, clearCart, applyCoupon, removeCoupon, setCouponError, clearCouponError, addToCart } from '../../store/slices/cartSlice';
+import { removeFromCart, updateQuantity, clearCart, applyCoupon, removeCoupon, setCouponError, clearCouponError, addToCart, calculateTotals, getItemPrice } from '../../store/slices/cartSlice';
 import { couponApi } from '../../api/client';
 import { useAuthGate } from '../../hooks/useAuthGate';
 import type { CartStackParamList } from '../../navigation/MainNavigator';
@@ -30,7 +29,7 @@ const CartScreen: React.FC = () => {
     const dispatch = useAppDispatch();
     const { requireAuth, isGuestUser } = useAuthGate();
 
-    const { items, subtotal, tax, total, totalItems, appliedCoupon, couponError } = useAppSelector((state) => state.cart);
+    const { items, totalItems, appliedCoupon, couponError } = useAppSelector((state) => state.cart);
     const { services } = useAppSelector((state) => state.services);
     
     // Top 4 services as similar services
@@ -40,9 +39,35 @@ const CartScreen: React.FC = () => {
     const [selectedIds, setSelectedIds] = useState<Set<string>>(
         () => new Set(items.map(i => i.service.id))
     );
+    const prevItemIdsRef = useRef<Set<string>>(new Set(items.map(i => i.service.id)));
     const [couponCode, setCouponCode] = useState('');
     const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
     const [isBreakdownExpanded, setIsBreakdownExpanded] = useState(false);
+
+    // Sync selectedIds when cart items change: auto-select new items, prune removed ones
+    useEffect(() => {
+        const currentIds = new Set(items.map(i => i.service.id));
+        const prevIds = prevItemIdsRef.current;
+
+        setSelectedIds(prev => {
+            const next = new Set(prev);
+            // Auto-select newly added items
+            currentIds.forEach(id => {
+                if (!prevIds.has(id)) {
+                    next.add(id);
+                }
+            });
+            // Remove IDs no longer in cart
+            next.forEach(id => {
+                if (!currentIds.has(id)) {
+                    next.delete(id);
+                }
+            });
+            return next;
+        });
+
+        prevItemIdsRef.current = currentIds;
+    }, [items]);
 
     const handleQuantityChange = (serviceId: string, delta: number) => {
         const item = items.find(i => i.service.id === serviceId);
@@ -69,18 +94,44 @@ const CartScreen: React.FC = () => {
         );
     };
 
+    const effectivelySelected = items.filter(i => selectedIds.has(i.service.id));
+
+    // Use shared calculator for selected items
+    const { 
+        subtotal: selectedSubtotal, 
+        tax: selectedTax, 
+        total: selectedTotal, 
+        discountAmount: selectedCouponDiscount,
+        isCouponApplicable 
+    } = calculateTotals(effectivelySelected, appliedCoupon);
+
+    const toggleSelectAll = () => {
+        if (isAllSelected) {
+            setSelectedIds(new Set()); // deselect all
+        } else {
+            setSelectedIds(new Set(items.map(i => i.service.id))); // select all
+        }
+    };
+
     const handleApplyCoupon = async () => {
         if (!couponCode.trim()) return;
+
+        // Prevent applying coupon if nothing is selected
+        if (effectivelySelected.length === 0) {
+            dispatch(setCouponError('Please select items before applying a coupon.'));
+            return;
+        }
 
         setIsValidatingCoupon(true);
         dispatch(clearCouponError());
 
         try {
-            const { data } = await couponApi.validateCoupon(couponCode.trim().toUpperCase(), subtotal);
+            // Validate coupon against selected items subtotal, not full cart
+            const { data } = await couponApi.validateCoupon(couponCode.trim().toUpperCase(), selectedSubtotal);
             const coupon = data.data || data;
 
             if (coupon && coupon.isActive) {
-                if (coupon.minOrderAmount && subtotal < coupon.minOrderAmount) {
+                if (coupon.minOrderAmount && selectedSubtotal < coupon.minOrderAmount) {
                     dispatch(setCouponError(`Minimum order amount is ${formatCurrency(coupon.minOrderAmount)}`));
                     return;
                 }
@@ -90,6 +141,7 @@ const CartScreen: React.FC = () => {
                     discountType: coupon.discountType,
                     discountValue: coupon.discountValue,
                     maxDiscount: coupon.maxDiscount,
+                    minOrderAmount: coupon.minOrderAmount,
                 }));
                 setCouponCode('');
             } else {
@@ -108,6 +160,12 @@ const CartScreen: React.FC = () => {
 
     const handleProceed = () => {
         const selectedItems = items.filter(i => selectedIds.has(i.service.id));
+
+        if (selectedItems.length === 0) {
+            Alert.alert('No Items Selected', 'Please select at least one service to proceed.');
+            return;
+        }
+
         const hasInstant = selectedItems.some(i => i.service.isInstant);
         const hasScheduled = selectedItems.some(i => !i.service.isInstant);
 
@@ -141,28 +199,9 @@ const CartScreen: React.FC = () => {
 
     // All selected when every item ID is in the set
     const isAllSelected = items.length > 0 && items.every(i => selectedIds.has(i.service.id));
-    const effectivelySelected = items.filter(i => selectedIds.has(i.service.id));
-
-    const toggleSelectAll = () => {
-        if (isAllSelected) {
-            setSelectedIds(new Set()); // deselect all
-        } else {
-            setSelectedIds(new Set(items.map(i => i.service.id))); // select all
-        }
-    };
-
     const isItemSelected = (serviceId: string) => selectedIds.has(serviceId);
 
-    // Variant-aware price/duration resolution
-    const getItemPrice = (item: CartItem): number => {
-        const variantId = item.selectedOptions?.variantId;
-        if (variantId) {
-            const metadata = item.service.metadata as any;
-            const variant = metadata?.variants?.[variantId];
-            if (variant?.price !== undefined) return variant.price;
-        }
-        return item.service.basePrice;
-    };
+    // Variant-aware price/duration resolution (moved up)
 
     const getItemDuration = (item: CartItem): number => {
         const variantId = item.selectedOptions?.variantId;
@@ -184,13 +223,7 @@ const CartScreen: React.FC = () => {
         return null;
     };
 
-    // Subtotal of selected items only
-    const selectedSubtotal = effectivelySelected.reduce(
-        (sum, i) => sum + getItemPrice(i) * i.quantity, 0
-    );
-    const selectedTax = Math.round(selectedSubtotal * 0.18);
-    const couponDiscount = appliedCoupon?.discountAmount || 0;
-    const selectedTotal = selectedSubtotal + selectedTax - couponDiscount;
+    // Recalculate coupon discount for selected items (not full cart) - (Moved to calculateTotals)
 
     const handleClearCart = () => {
         Alert.alert(
@@ -286,9 +319,15 @@ const CartScreen: React.FC = () => {
                         <Text style={styles.couponAppliedLabel}>
                             '{appliedCoupon.code}' Applied
                         </Text>
-                        <Text style={styles.couponSavings}>
-                            You save {formatCurrency(appliedCoupon.discountAmount || 0)}
-                        </Text>
+                        {isCouponApplicable ? (
+                            <Text style={styles.couponSavings}>
+                                You save {formatCurrency(selectedCouponDiscount)}
+                            </Text>
+                        ) : (
+                            <Text style={[styles.couponSavings, { color: COLORS.error }]}>
+                                Add {formatCurrency((appliedCoupon.minOrderAmount || 0) - selectedSubtotal)} more to use this coupon
+                            </Text>
+                        )}
                     </View>
                     <TouchableOpacity onPress={handleRemoveCoupon} style={styles.removeCouponButton}>
                         <Ionicons name="close" size={18} color={COLORS.textSecondary} />
@@ -471,10 +510,10 @@ const CartScreen: React.FC = () => {
                         <Text style={styles.summaryValue}>{formatCurrency(selectedSubtotal)}</Text>
                     </TouchableOpacity>
 
-                    {appliedCoupon && (
+                    {appliedCoupon && selectedCouponDiscount > 0 && (
                         <View style={styles.summaryRow}>
                             <Text style={styles.discountLabel}>Discount</Text>
-                            <Text style={styles.discountValue}>-{formatCurrency(couponDiscount)}</Text>
+                            <Text style={styles.discountValue}>-{formatCurrency(selectedCouponDiscount)}</Text>
                         </View>
                     )}
 
