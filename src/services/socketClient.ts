@@ -8,6 +8,8 @@ const PREDEFINED_EVENTS = [
     'connect', 'disconnect', 'connect_error', 'error', 
     'buddy:location:live', 'buddy:location:update', 
     'booking:updated', 'booking:status:changed',
+    'booking:assigned', 'booking:accepted', 'buddy:on_way', 'booking:arrived',
+    'booking:started', 'booking:completed', 'booking:activated',
     'chat:message', 'chat:new-message', 'chat:read-receipt', 'chat:typing', 'chat:joined',
     'call:incoming', 'call:initiated', 'call:answered', 'call:ice-candidate', 'call:rejected', 'call:ended', 'call:missed'
 ];
@@ -142,6 +144,28 @@ export const connectSocket = async (): Promise<Socket | null> => {
             if (!dedupeAndAck(data, ack)) return;
             console.log('[Socket] Booking status changed:', data);
             notifyListeners('booking:status:changed', data);
+        });
+
+        // Listen for booking lifecycle events (ack-aware for offline delivery)
+        // Backend emits these via emitToUser → stored as offline messages when user is offline
+        const lifecycleStatusMap: Record<string, string> = {
+            'booking:assigned': 'ASSIGNED',
+            'booking:accepted': 'ACCEPTED',
+            'buddy:on_way': 'ON_WAY',
+            'booking:arrived': 'ARRIVED',
+            'booking:started': 'IN_PROGRESS',
+            'booking:completed': 'COMPLETED',
+            'booking:activated': 'PENDING',
+        };
+
+        Object.keys(lifecycleStatusMap).forEach((event) => {
+            socket!.on(event, (data: any, ack?: any) => {
+                if (!dedupeAndAck(data, ack)) return;
+                console.log(`[Socket] ${event}:`, data);
+                notifyListeners(event, data);
+                // Forward to booking:updated with synthesized status so useSocket refresh hooks work correctly
+                notifyListeners('booking:updated', { ...data, status: data.status || lifecycleStatusMap[event] });
+            });
         });
 
         // Listen for chat events (accept ack for offline message delivery)
