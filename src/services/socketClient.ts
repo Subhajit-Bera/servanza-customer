@@ -113,16 +113,21 @@ export const connectSocket = async (): Promise<Socket | null> => {
 
         const processedEvents = new Set<string>();
         const dedupeAndAck = (data: any, ack?: any) => {
+            // Acknowledge receipt if the server sent with ack support
             if (typeof ack === 'function') {
                 ack({ success: true, timestamp: Date.now() });
             }
-            if (data?.eventId) {
-                if (processedEvents.has(data.eventId)) return false;
-                processedEvents.add(data.eventId);
+            // Dedupe using the first available unique key
+            const dedupeKey = data?.eventId || data?.offlineMsgId || data?.messageId || data?.callId;
+            if (dedupeKey) {
+                if (processedEvents.has(dedupeKey)) return false;
+                processedEvents.add(dedupeKey);
+                // Evict oldest entries to prevent unbounded growth
                 if (processedEvents.size > 100) {
                     processedEvents.delete(Array.from(processedEvents)[0]);
                 }
             }
+            // No dedupe key = process normally (live event without ID)
             return true;
         };
 
@@ -139,27 +144,32 @@ export const connectSocket = async (): Promise<Socket | null> => {
             notifyListeners('booking:status:changed', data);
         });
 
-        // Listen for chat events
+        // Listen for chat events (accept ack for offline message delivery)
         ['chat:message', 'chat:new-message', 'chat:read-receipt', 'chat:typing', 'chat:joined'].forEach((event) => {
-            socket!.on(event, (data) => {
+            socket!.on(event, (data: any, ack?: any) => {
+                if (!dedupeAndAck(data, ack)) return;
                 console.log(`[Socket] ${event}:`, data);
                 notifyListeners(event, data);
             });
         });
 
-        // Listen for call events
+        // Listen for call events (accept ack for offline call delivery)
         ['call:incoming', 'call:initiated', 'call:answered', 'call:ice-candidate', 'call:rejected', 'call:ended', 'call:missed'].forEach((event) => {
-            socket!.on(event, (data) => {
+            socket!.on(event, (data: any, ack?: any) => {
+                if (!dedupeAndAck(data, ack)) return;
                 console.log(`[Socket] ${event}:`, data);
                 notifyListeners(event, data);
             });
         });
 
-        // Re-bind any dynamically added listeners
+        // Re-bind any dynamically added listeners (accept ack for offline delivery)
         eventListeners.forEach((_, event) => {
             // Avoid re-binding the hardcoded ones above
             if (!PREDEFINED_EVENTS.includes(event)) {
-                socket!.on(event, (data) => notifyListeners(event, data));
+                socket!.on(event, (data: any, ack?: any) => {
+                    if (typeof ack === 'function') ack({ success: true, timestamp: Date.now() });
+                    notifyListeners(event, data);
+                });
             }
         });
 
@@ -215,7 +225,10 @@ export const addSocketListener = (event: string, callback: EventCallback): void 
         eventListeners.set(event, new Set());
         // Dynamically bind to socket if already connected and not predefined
         if (socket?.connected && !PREDEFINED_EVENTS.includes(event)) {
-            socket.on(event, (data) => notifyListeners(event, data));
+            socket.on(event, (data: any, ack?: any) => {
+                if (typeof ack === 'function') ack({ success: true, timestamp: Date.now() });
+                notifyListeners(event, data);
+            });
         }
     }
     eventListeners.get(event)!.add(callback);

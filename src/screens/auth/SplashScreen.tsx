@@ -17,7 +17,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const APP_LOGO = require('../../../assets/icon.png');
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
-import { checkAuthStatus, enterGuestMode } from '../../store/slices/authSlice';
+import { enterGuestMode } from '../../store/slices/authSlice';
 import type { AuthStackParamList } from '../../navigation/AuthNavigator';
 
 const { width, height } = Dimensions.get('window');
@@ -88,7 +88,7 @@ const SplashScreen: React.FC = () => {
             ]),
         ]).start();
 
-        dispatch(checkAuthStatus());
+        // Auth check is handled by App.tsx (RootNavigator) — no duplicate dispatch here
     }, []);
 
     useEffect(() => {

@@ -10,8 +10,8 @@ import {
     Image,
     Linking,
     Alert,
-    InteractionManager,
 } from 'react-native';
+import { runAfterInteractions } from '../../utils/interactions';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -59,7 +59,7 @@ const MyBookingsScreen: React.FC = () => {
 
     useFocusEffect(
         useCallback(() => {
-            const task = InteractionManager.runAfterInteractions(() => {
+            const task = runAfterInteractions(() => {
                 loadOrders();
             });
 

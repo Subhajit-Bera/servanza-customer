@@ -10,8 +10,8 @@ import {
     Image,
     Dimensions,
     Linking,
-    InteractionManager,
 } from 'react-native';
+import { runAfterInteractions } from '../../utils/interactions';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect, CommonActions } from '@react-navigation/native';
@@ -69,7 +69,7 @@ const HomeScreen: React.FC = () => {
     const defaultAddress = addresses?.find((a: any) => a.isDefault) || addresses?.[0];
 
     useEffect(() => {
-        const task = InteractionManager.runAfterInteractions(() => {
+        const task = runAfterInteractions(() => {
             loadData();
             requestLocationPermission();
             fetchPromotions();
